@@ -1,0 +1,304 @@
+﻿generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("va_User")
+}
+
+model SQMVQMVendor {
+  id             Int                   @id @default(autoincrement())
+  name           String                @unique
+  vendorType     String                @default("國內廠商") // 國內廠商, 國外廠商
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  annualInputs   SQMVQMAnnualInput[]
+  monthlyReports SQMVQMMonthlyReport[]
+
+  @@map("va_SQMVQMVendor")
+}
+
+model SQMVQMMonthlyReport {
+  id                            Int          @id @default(autoincrement())
+  year                          Int
+  quarter                       String       @db.VarChar(2) // Q1, Q2, Q3, Q4
+  vendorId                      Int
+  receivedQuantity              String
+  returnedQuantity              String
+  receivedBatches               Int
+  returnedBatches               Int
+  arr                           Float
+  lrr                           Float
+  externalCAR                   Float
+  untimelyResponseCCR           Float
+  others                        Float
+  totalBaseScoreB               Float?
+  qualityAssessmentScoreC1      Float?
+  qualityAssessmentScoreC       Float?
+  serviceQuality                Float
+  lateDelivery                  Float
+  specialApproval               Float
+  productionLineStop            Float
+  excessFreight                 Float
+  purchaseAssessmentScoreA      Float?
+  totalPurchaseAssessmentScoreA Float?
+  servicePurchase               Float
+  assessmentScore               Float?
+  remarks                       String?      @db.Text // 備註 - 使用 TEXT 類型以支援長文字
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
+  vendor                        SQMVQMVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, quarter, vendorId])
+  @@index([vendorId], map: "SQMVQMMonthlyReport_vendorId_fkey")
+  @@map("va_SQMVQMMonthlyReport")
+}
+
+model SQMVQMAnnualInput {
+  id                Int          @id @default(autoincrement())
+  year              Int
+  vendorId          Int
+  VDA               Float?
+  QSA               Float?
+  QPA               Float?
+  HSF               Float?
+  CSR               Float?
+  others            Float?
+  nextYearAuditType String?
+  remarks           String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  vendor            SQMVQMVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, vendorId])
+  @@index([vendorId], map: "SQMVQMAnnualInput_vendorId_fkey")
+  @@map("va_SQMVQMAnnualInput")
+}
+
+model OSATVendor {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  annualInputs      OSATAnnualInput[]
+  monthlyReports    OSATMonthlyReport[]
+  monthlyPurchases  OSATMonthlyPurchase[]
+
+  @@map("va_OSATVendor")
+}
+
+model OSATMonthlyReport {
+  id                            Int        @id @default(autoincrement())
+  year                          Int
+  month                         Int
+  vendorId                      Int
+  factory                       String     @default("gangshan") // 廠區識別：gangshan(岡山) 或 suzhou(蘇州)
+  shipmentQuantity              String     // 出貨量(K) - 原 receivedQuantity
+  receivedBatches               Int        // 進料批數 - 原 receivedBatches
+  returnedBatches               Int        // 進料退貨批數 - 原 returnedBatches
+  totalComplaintCCR             Float      // 客訴總件數(CCR件數) - 原 arr
+  severeComplaintCCR            Float      // 嚴重客訴(CCR件數) - 原 lrr
+  generalComplaintCCR           Float      // 一般客訴(CCR件數) - 原 customerComplaintRecurrence
+  complaintRecurrenceCCR        Float      // 客訴再發(CCR件數) - 原 externalCAR
+  groupCAR                      Float      // 集團CAR(CAR件數) - 新增
+  timelyResponseCCR             Float      // 準時回覆件數CCR
+  untimelyResponseCCR           Float      // 未準時回覆件數CCR
+  // 新的計算欄位
+  incomingAcceptanceScoreA1     Float?     // 進料允收率品質評分(A1)
+  incomingAcceptanceScoreA      Float?     // 進料允收率品質評分(總分A)40%
+  baseScoreB1                   Float?     // 基礎評分(B1)40%
+  baseScoreB2                   Float?     // 基礎評分(B2)10%
+  totalBaseScoreB               Float?     // 基礎評分(總分B)50%
+  others                        Float      // 其他10%
+  qualityAssessmentScore        Float?     // 品質-品管鑑定分數
+  qualityAssessmentScoreWeighted Float?    // 品質-品管鑑定分數(權重70%)
+  serviceQuality                Float      // 服務-品管鑑定分數(權重5%)
+  // 採購相關欄位保持不變
+  lateDelivery                  Float
+  specialApproval               Float
+  productionLineStop            Float
+  excessFreight                 Float
+  purchaseAssessmentScoreA      Float?
+  totalPurchaseAssessmentScoreA Float?
+  servicePurchase               Float
+  assessmentScore               Float?
+  remarks                       String?    @db.Text // 備註 - 使用 TEXT 類型以支援長文字
+  createdAt                     DateTime   @default(now())
+  updatedAt                     DateTime   @updatedAt
+  vendor                        OSATVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, month, vendorId, factory])
+  @@index([vendorId], map: "OSATMonthlyReport_vendorId_fkey")
+  @@index([factory], map: "OSATMonthlyReport_factory_fkey")
+  @@index([factory, year, month], map: "OSATMonthlyReport_factory_year_month_fkey")
+  @@map("va_OSATMonthlyReport")
+}
+
+model OSATAnnualInput {
+  id                Int        @id @default(autoincrement())
+  year              Int
+  vendorId          Int
+  VDA               Float?
+  QSA               Float?
+  QPA               Float?
+  HSF               Float?
+  CSR               Float?
+  others            Float?
+  nextYearAuditType String?
+  remarks           String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  vendor            OSATVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, vendorId])
+  @@index([vendorId], map: "OSATAnnualInput_vendorId_fkey")
+  @@map("va_OSATAnnualInput")
+}
+
+model OSATMonthlyPurchase {
+  id                Int        @id @default(autoincrement())
+  year              Int
+  month             Int
+  vendorId          Int
+  purchaseQuantity  Float      // 月採購量
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  vendor            OSATVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, month, vendorId])
+  @@index([vendorId], map: "OSATMonthlyPurchase_vendorId_fkey")
+  @@index([year, month], map: "OSATMonthlyPurchase_year_month_fkey")
+  @@map("va_OSATMonthlyPurchase")
+}
+
+model OSATSupplierMapping {
+  id             Int      @id @default(autoincrement())
+  keyword        String   @unique @db.VarChar(100)
+  supplier_name  String   @db.VarChar(200)
+  rule_type      String   @default("general") @db.VarChar(20) // general, special
+  special_config Json?
+  is_active      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([rule_type])
+  @@index([is_active])
+  @@map("va_OSATSupplierMapping")
+}
+
+// 機器人後台：無法回答時的問題紀錄（供訓練後刪除）
+model AiUnansweredLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  username   String   @db.VarChar(100)
+  question   String   @db.Text
+  systemType String   @db.VarChar(20)   // sqm-vqm | osat
+  aiResponse String?  @db.Text         // 當時 AI 回覆內容
+  notes      String?  @db.Text         // 管理員備註（可編輯）
+  resolved   Boolean  @default(false)  // 是否已訓練/處理可刪除
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([resolved])
+  @@index([createdAt])
+  @@map("va_AiUnansweredLog")
+}
+
+// 機器人使用紀錄：每次提問一筆，供統計使用頻率與問題類型
+model AiUsageLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  username   String   @db.VarChar(100)
+  systemType String   @db.VarChar(20)   // sqm-vqm | osat
+  queryType  String?  @db.VarChar(50)  // query | statistics | trend | audit_type 等
+  askedAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([queryType])
+  @@index([askedAt])
+  @@map("va_AiUsageLog")
+}
+
+// LLM 設定（可覆蓋 .env，僅 admin 可改）
+model AiLlmConfig {
+  id        Int      @id @default(autoincrement())
+  configKey String   @unique @db.VarChar(80)  // e.g. OLLAMA_MODEL, OLLAMA_API_URL
+  configVal String?  @db.VarChar(500)
+  updatedAt DateTime @updatedAt
+
+  @@map("va_AiLlmConfig")
+}
+
+// ----- 以下為其它程式之表，本系統不寫入，僅保留於 schema 避免 db push 時被刪除 -----
+model cp_data_review {
+  id             Int       @id @default(autoincrement())
+  wafer_number   String    @db.VarChar(50)
+  wafer_batch    String    @db.VarChar(50)
+  product_type   String    @db.VarChar(100)
+  supplier       String    @db.VarChar(100)
+  die_number     String    @db.VarChar(50)
+  test_results   Json?
+  yield_result   Float?    @db.Float
+  review_date    DateTime? @db.DateTime(0)
+  pj_defect_count Int?     @default(0) @map("pj_defect_count")
+}
+
+model product_specification {
+  id                Int       @id @default(autoincrement())
+  supplier          String    @db.VarChar(100)
+  wafer_number      String    @db.VarChar(50)
+  document_no       String    @db.VarChar(100)
+  version           String?   @db.VarChar(50)
+  type_field        String?   @db.VarChar(100)
+  test_item         String    @db.VarChar(100)
+  package_impedance String?   @db.VarChar(100)
+  spec_unit         String?   @db.VarChar(50)
+  pj_internal_upper Float?    @db.Float
+  pj_internal_lower Float?    @db.Float
+  pj_qc_upper       Float?    @db.Float
+  pj_qc_lower       Float?    @db.Float
+  created_at        DateTime? @db.DateTime(0)
+  updated_at        DateTime? @db.DateTime(0)
+}
+
+model wafer_product_mapping {
+  id                Int       @id @default(autoincrement())
+  wafer_number      String    @db.VarChar(50)
+  product_type      String    @db.VarChar(100)
+  product_status    String    @db.VarChar(50)
+  package           String?   @db.VarChar(100)
+  wafer_description String?   @db.VarChar(200)
+  supplier          String?   @db.VarChar(100)
+  type_field        String?   @db.VarChar(100)
+  document_no       String?   @db.VarChar(100)
+  created_at        DateTime? @db.DateTime(0)
+  updated_at        DateTime? @db.DateTime(0)
+
+  @@unique([wafer_number, product_type, product_status], map: "unique_wafer_product_status")
+}
+
+model email_recipient {
+  id         Int      @id @default(autoincrement())
+  email      String   @db.VarChar(255)
+  name       String?  @db.VarChar(100)
+  department String?  @db.VarChar(100)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@map("email_recipient")
+}

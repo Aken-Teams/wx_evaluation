@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(PORT=3001 DATABASE_URL=\"mysql://A063:aEifmw2bh5LJ@mysql.theaken.com:33306/db_A063\" JWT_SECRET=\"change-me-now\" node:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm start)",
+      "Bash(rm:*)",
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(nul)",
+      "Bash(powershell -Command \"(Get-Content ''c:\\AICoding\\Test_evaluation\\server\\src\\index.js'').Count\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

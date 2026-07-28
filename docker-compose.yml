@@ -1,0 +1,32 @@
+services:
+  vendor-assessment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vendor-assessment:latest
+    container_name: vendor_assessment
+    restart: always
+    dns:
+      - 128.3.0.8
+      - 114.114.114.114
+    ports:
+      - "12009:3006"
+    environment:
+      PORT: 3006
+      NODE_ENV: production
+      MAINTENANCE_MODE: "false"
+      LOG_LEVEL: info
+      # 機密一律由環境變數 / .env 注入，不得明文寫在此檔（見 .env.example）
+      # 无锡环境数据库
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      # AI 问答（OpenAI 兼容接口，走公网 Cloudflare）
+      OLLAMA_API_URL: ${OLLAMA_API_URL}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3006/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

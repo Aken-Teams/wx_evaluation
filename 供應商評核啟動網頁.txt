@@ -1,0 +1,19 @@
+PowerShell
+
+後端服務（第一個 PowerShell 視窗）
+cd "D:\Trae Project\7.年度與月評核\server"
+npm run dev
+
+前端服務（第二個 PowerShell 視窗）
+cd "D:\Trae Project\7.年度與月評核"
+npm run dev
+
+
+
+開啟瀏覽器：
+前端網址：http://127.0.0.1:5176 或 http://localhost:5176
+後端 API：http://localhost:3001
+
+預設登入帳號：
+帳號：admin
+密碼：admin123

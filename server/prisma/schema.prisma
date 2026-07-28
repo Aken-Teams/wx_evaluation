@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("va_User")
+}
+
+model SQMVQMVendor {
+  id               Int                   @id @default(autoincrement())
+  name             String                @unique
+  vendorType       String                @default("domestic")
+  supplierCode     String?
+  materialCategory String?
+  region           String?
+  isAU             String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  annualInputs     SQMVQMAnnualInput[]
+  monthlyReports   SQMVQMMonthlyReport[]
+
+  @@map("va_SQMVQMVendor")
+}
+
+model SQMVQMMonthlyReport {
+  id                            Int          @id @default(autoincrement())
+  year                          Int
+  quarter                       String       @db.VarChar(2)
+  vendorId                      Int
+  receivedQuantity              String
+  returnedQuantity              String
+  receivedBatches               Int
+  returnedBatches               Int
+  arr                           Float
+  lrr                           Float
+  externalCAR                   Float
+  untimelyResponseCCR           Float
+  others                        Float
+  totalBaseScoreB               Float?
+  qualityAssessmentScoreC1      Float?
+  qualityAssessmentScoreC       Float?
+  serviceQuality                Float
+  lateDelivery                  Float
+  deliveryRate                  Float?
+  specialApproval               Float
+  productionLineStop            Float
+  excessFreight                 Float
+  purchaseAssessmentScoreA      Float?
+  totalPurchaseAssessmentScoreA Float?
+  servicePurchase               Float
+  assessmentScore               Float?
+  remarks                       String?      @db.Text
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
+  vendor                        SQMVQMVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, quarter, vendorId])
+  @@index([vendorId], map: "SQMVQMMonthlyReport_vendorId_fkey")
+  @@map("va_SQMVQMMonthlyReport")
+}
+
+model SQMVQMAnnualInput {
+  id                Int          @id @default(autoincrement())
+  year              Int
+  vendorId          Int
+  VDA               Float?
+  QSA               Float?
+  QPA               Float?
+  HSF               Float?
+  CSR               Float?
+  others            Float?
+  nextYearAuditType String?
+  remarks           String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  vendor            SQMVQMVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, vendorId])
+  @@index([vendorId], map: "SQMVQMAnnualInput_vendorId_fkey")
+  @@map("va_SQMVQMAnnualInput")
+}
+
+model OSATVendor {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  annualInputs      OSATAnnualInput[]
+  monthlyReports    OSATMonthlyReport[]
+  monthlyPurchases  OSATMonthlyPurchase[]
+
+  @@map("va_OSATVendor")
+}
+
+model OSATMonthlyReport {
+  id                            Int        @id @default(autoincrement())
+  year                          Int
+  month                         Int
+  vendorId                      Int
+  factory                       String     @default("gangshan")
+  shipmentQuantity              String
+  receivedBatches               Int
+  returnedBatches               Int
+  totalComplaintCCR             Float
+  severeComplaintCCR            Float
+  generalComplaintCCR           Float
+  complaintRecurrenceCCR        Float
+  groupCAR                      Float
+  timelyResponseCCR             Float
+  untimelyResponseCCR           Float
+  incomingAcceptanceScoreA1     Float?
+  incomingAcceptanceScoreA      Float?
+  baseScoreB1                   Float?
+  baseScoreB2                   Float?
+  totalBaseScoreB               Float?
+  others                        Float
+  qualityAssessmentScore        Float?
+  qualityAssessmentScoreWeighted Float?
+  serviceQuality                Float
+  lateDelivery                  Float
+  specialApproval               Float
+  productionLineStop            Float
+  excessFreight                 Float
+  purchaseAssessmentScoreA      Float?
+  totalPurchaseAssessmentScoreA Float?
+  servicePurchase               Float
+  assessmentScore               Float?
+  remarks                       String?    @db.Text
+  createdAt                     DateTime   @default(now())
+  updatedAt                     DateTime   @updatedAt
+  vendor                        OSATVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, month, vendorId, factory])
+  @@index([vendorId], map: "OSATMonthlyReport_vendorId_fkey")
+  @@index([factory], map: "OSATMonthlyReport_factory_fkey")
+  @@index([factory, year, month], map: "OSATMonthlyReport_factory_year_month_fkey")
+  @@map("va_OSATMonthlyReport")
+}
+
+model OSATAnnualInput {
+  id                Int        @id @default(autoincrement())
+  year              Int
+  vendorId          Int
+  VDA               Float?
+  QSA               Float?
+  QPA               Float?
+  HSF               Float?
+  CSR               Float?
+  others            Float?
+  nextYearAuditType String?
+  remarks           String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  vendor            OSATVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, vendorId])
+  @@index([vendorId], map: "OSATAnnualInput_vendorId_fkey")
+  @@map("va_OSATAnnualInput")
+}
+
+model OSATMonthlyPurchase {
+  id                Int        @id @default(autoincrement())
+  year              Int
+  month             Int
+  vendorId          Int
+  purchaseQuantity  Float
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  vendor            OSATVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, month, vendorId])
+  @@index([vendorId], map: "OSATMonthlyPurchase_vendorId_fkey")
+  @@index([year, month], map: "OSATMonthlyPurchase_year_month_fkey")
+  @@map("va_OSATMonthlyPurchase")
+}
+
+model OSATSupplierMapping {
+  id             Int      @id @default(autoincrement())
+  keyword        String   @unique @db.VarChar(100)
+  supplier_name  String   @db.VarChar(200)
+  rule_type      String   @default("general") @db.VarChar(20)
+  special_config Json?
+  is_active      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([rule_type])
+  @@index([is_active])
+  @@map("va_OSATSupplierMapping")
+}
+
+model AiUnansweredLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  username   String   @db.VarChar(100)
+  question   String   @db.Text
+  systemType String   @db.VarChar(20)
+  aiResponse String?  @db.Text
+  notes      String?  @db.Text
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([resolved])
+  @@index([createdAt])
+  @@map("va_AiUnansweredLog")
+}
+
+model AiUsageLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  username   String   @db.VarChar(100)
+  systemType String   @db.VarChar(20)
+  queryType  String?  @db.VarChar(50)
+  askedAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([queryType])
+  @@index([askedAt])
+  @@map("va_AiUsageLog")
+}
+
+model AiLlmConfig {
+  id        Int      @id @default(autoincrement())
+  configKey String   @unique @db.VarChar(80)
+  configVal String?  @db.VarChar(500)
+  updatedAt DateTime @updatedAt
+
+  @@map("va_AiLlmConfig")
+}
+
+model cp_data_review {
+  id             Int       @id @default(autoincrement())
+  wafer_number   String    @db.VarChar(50)
+  wafer_batch    String    @db.VarChar(50)
+  product_type   String    @db.VarChar(100)
+  supplier       String    @db.VarChar(100)
+  die_number     String    @db.VarChar(50)
+  test_results   Json?
+  yield_result   Float?    @db.Float
+  review_date    DateTime? @db.DateTime(0)
+  pj_defect_count Int?     @default(0) @map("pj_defect_count")
+}
+
+model product_specification {
+  id                Int       @id @default(autoincrement())
+  supplier          String    @db.VarChar(100)
+  wafer_number      String    @db.VarChar(50)
+  document_no       String    @db.VarChar(100)
+  version           String?   @db.VarChar(50)
+  type_field        String?   @db.VarChar(100)
+  test_item         String    @db.VarChar(100)
+  package_impedance String?   @db.VarChar(100)
+  spec_unit         String?   @db.VarChar(50)
+  pj_internal_upper Float?    @db.Float
+  pj_internal_lower Float?    @db.Float
+  pj_qc_upper       Float?    @db.Float
+  pj_qc_lower       Float?    @db.Float
+  created_at        DateTime? @db.DateTime(0)
+  updated_at        DateTime? @db.DateTime(0)
+}
+
+model wafer_product_mapping {
+  id                Int       @id @default(autoincrement())
+  wafer_number      String    @db.VarChar(50)
+  product_type      String    @db.VarChar(100)
+  product_status    String    @db.VarChar(50)
+  package           String?   @db.VarChar(100)
+  wafer_description String?   @db.VarChar(200)
+  supplier          String?   @db.VarChar(100)
+  type_field        String?   @db.VarChar(100)
+  document_no       String?   @db.VarChar(100)
+  created_at        DateTime? @db.DateTime(0)
+  updated_at        DateTime? @db.DateTime(0)
+
+  @@unique([wafer_number, product_type, product_status], map: "unique_wafer_product_status")
+}
+
+model email_recipient {
+  id         Int      @id @default(autoincrement())
+  email      String   @db.VarChar(255)
+  name       String?  @db.VarChar(100)
+  department String?  @db.VarChar(100)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@map("email_recipient")
+}

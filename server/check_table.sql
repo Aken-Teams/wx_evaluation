@@ -1,0 +1,1 @@
+DESCRIBE va_SQMVQMVendor;
