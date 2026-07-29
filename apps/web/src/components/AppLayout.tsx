@@ -8,6 +8,7 @@ import { Avatar, Dropdown, Layout, Menu, Typography } from 'antd';
 import { useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const { Sider, Header, Content } = Layout;
 
@@ -87,7 +88,9 @@ export function AppLayout() {
           </Dropdown>
         </Header>
         <Content style={{ padding: 24 }}>
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </Content>
       </Layout>
     </Layout>

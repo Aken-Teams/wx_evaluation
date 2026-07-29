@@ -119,6 +119,9 @@ export function DashboardPage() {
   if (!period && !periodsQuery.isLoading) return <Empty description="尚无评比资料" />;
 
   const cardBody = { minHeight: 300 };
+  const emptyBox = (
+    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '72px 0' }} description="暂无数据" />
+  );
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -141,12 +144,12 @@ export function DashboardPage() {
       {/* KPI 卡 */}
       <Row gutter={16}>
         <Col xs={12} md={6}>
-          <Card bordered={false}>
+          <Card variant="borderless">
             <Statistic title="供应商总数" value={kpis?.count ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card bordered={false}>
+          <Card variant="borderless">
             <Statistic
               title="平均综合分"
               value={kpis?.avgScore ?? 0}
@@ -156,7 +159,7 @@ export function DashboardPage() {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card bordered={false}>
+          <Card variant="borderless">
             <Statistic
               title="A 级家数"
               value={kpis?.distribution.A ?? 0}
@@ -166,7 +169,7 @@ export function DashboardPage() {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card bordered={false}>
+          <Card variant="borderless">
             <Statistic
               title="本季降级家数"
               value={kpis?.downgraded ?? 0}
@@ -181,31 +184,45 @@ export function DashboardPage() {
       <Row gutter={16}>
         {/* 等级分布 */}
         <Col xs={24} lg={8}>
-          <Card title="等级分布" bordered={false} styles={{ body: cardBody }}>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={distData} dataKey="value" nameKey="grade" outerRadius={90} label={(e) => `${e.grade} (${e.value})`}>
-                  {distData.map((d) => (
-                    <Cell key={d.grade} fill={gradeColor[d.grade]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <Card title="等级分布" variant="borderless" styles={{ body: cardBody }}>
+            {distData.length ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={distData}
+                    dataKey="value"
+                    nameKey="grade"
+                    outerRadius={90}
+                    label={(e) => `${e.grade} (${e.value})`}
+                  >
+                    {distData.map((d) => (
+                      <Cell key={d.grade} fill={gradeColor[d.grade]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              emptyBox
+            )}
           </Card>
         </Col>
         {/* Top10 综合分 */}
         <Col xs={24} lg={16}>
-          <Card title="综合分 Top 10" bordered={false} styles={{ body: cardBody }}>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={top10} layout="vertical" margin={{ left: 40, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" domain={[0, 100]} />
-                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="score" fill="#1a56db" radius={[0, 4, 4, 0]} barSize={16} />
-              </BarChart>
-            </ResponsiveContainer>
+          <Card title="综合分 Top 10" variant="borderless" styles={{ body: cardBody }}>
+            {top10.length ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={top10} layout="vertical" margin={{ left: 40, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} />
+                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="score" fill="#1a56db" radius={[0, 4, 4, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              emptyBox
+            )}
           </Card>
         </Col>
       </Row>
@@ -213,41 +230,49 @@ export function DashboardPage() {
       <Row gutter={16}>
         {/* 趋势 */}
         <Col xs={24} lg={12}>
-          <Card title={`${period?.year ?? ''} 年 各季趋势`} bordered={false} styles={{ body: cardBody }}>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="quarter" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="平均分" stroke="#1a56db" strokeWidth={2} />
-                <Line type="monotone" dataKey="降级家数" stroke="#e02424" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+          <Card title={`${period?.year ?? ''} 年 各季趋势`} variant="borderless" styles={{ body: cardBody }}>
+            {trendData.length ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="quarter" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="平均分" stroke="#1a56db" strokeWidth={2} />
+                  <Line type="monotone" dataKey="降级家数" stroke="#e02424" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              emptyBox
+            )}
           </Card>
         </Col>
         {/* 雷达比较 Top5 */}
         <Col xs={24} lg={12}>
-          <Card title="Top 5 多维比较（三轴各正规化为 100）" bordered={false} styles={{ body: cardBody }}>
-            <ResponsiveContainer width="100%" height={260}>
-              <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="subject" />
-                <Tooltip />
-                <Legend />
-                {top5Names.map((name, i) => (
-                  <Radar
-                    key={name}
-                    name={name}
-                    dataKey={name}
-                    stroke={RADAR_COLORS[i]}
-                    fill={RADAR_COLORS[i]}
-                    fillOpacity={0.1}
-                  />
-                ))}
-              </RadarChart>
-            </ResponsiveContainer>
+          <Card title="Top 5 多维比较（三轴各正规化为 100）" variant="borderless" styles={{ body: cardBody }}>
+            {top5Names.length ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <RadarChart data={radarData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="subject" />
+                  <Tooltip />
+                  <Legend />
+                  {top5Names.map((name, i) => (
+                    <Radar
+                      key={name}
+                      name={name}
+                      dataKey={name}
+                      stroke={RADAR_COLORS[i]}
+                      fill={RADAR_COLORS[i]}
+                      fillOpacity={0.1}
+                    />
+                  ))}
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              emptyBox
+            )}
           </Card>
         </Col>
       </Row>
@@ -255,7 +280,7 @@ export function DashboardPage() {
       <Row gutter={16}>
         {/* 排名表 */}
         <Col xs={24} lg={16}>
-          <Card title="供应商排名" bordered={false} styles={{ body: { padding: 0 } }}>
+          <Card title="供应商排名" variant="borderless" styles={{ body: { padding: 0 } }}>
             <Table<RankingItem>
               rowKey="vendorId"
               columns={rankColumns}
@@ -275,7 +300,7 @@ export function DashboardPage() {
                 风险观察名单
               </Space>
             }
-            bordered={false}
+            variant="borderless"
             styles={{ body: { maxHeight: 420, overflow: 'auto' } }}
           >
             {watchlist.length === 0 ? (

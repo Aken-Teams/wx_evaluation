@@ -245,7 +245,7 @@ export function EvaluationWorkbench() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card bordered={false} styles={{ body: { padding: '16px 20px' } }}>
+      <Card variant="borderless" styles={{ body: { padding: '16px 20px' } }}>
         <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space wrap>
             <Typography.Text strong>评比期别：</Typography.Text>
@@ -287,7 +287,7 @@ export function EvaluationWorkbench() {
         </Space>
       </Card>
 
-      <Card bordered={false} styles={{ body: { padding: 0 } }}>
+      <Card variant="borderless" styles={{ body: { padding: 0 } }}>
         <Table<Row>
           rowKey="vendorId"
           columns={columns}

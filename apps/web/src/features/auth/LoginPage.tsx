@@ -34,7 +34,7 @@ export function LoginPage() {
         background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
       }}
     >
-      <Card style={{ width: 380, boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }} bordered={false}>
+      <Card style={{ width: 380, boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }} variant="borderless">
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <SafetyCertificateOutlined style={{ fontSize: 40, color: '#1a56db' }} />
           <Typography.Title level={4} style={{ marginTop: 12, marginBottom: 0 }}>
