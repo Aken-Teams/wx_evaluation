@@ -1,0 +1,74 @@
+// M2 骨架階段：沿用現有 va_ 資料表（連無錫 DB），僅納入本階段需要的模型。
+// 之後 M4/資料模型重整時再演進為乾淨 schema。
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("va_User")
+}
+
+model SQMVQMVendor {
+  id               Int                   @id @default(autoincrement())
+  name             String                @unique
+  vendorType       String                @default("domestic")
+  supplierCode     String?
+  materialCategory String?
+  region           String?
+  isAU             String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  monthlyReports   SQMVQMMonthlyReport[]
+
+  @@map("va_SQMVQMVendor")
+}
+
+model SQMVQMMonthlyReport {
+  id                            Int          @id @default(autoincrement())
+  year                          Int
+  quarter                       String       @db.VarChar(2)
+  vendorId                      Int
+  receivedQuantity              String
+  returnedQuantity              String
+  receivedBatches               Int
+  returnedBatches               Int
+  arr                           Float
+  lrr                           Float
+  externalCAR                   Float
+  untimelyResponseCCR           Float
+  others                        Float
+  totalBaseScoreB               Float?
+  qualityAssessmentScoreC1      Float?
+  qualityAssessmentScoreC       Float?
+  serviceQuality                Float
+  lateDelivery                  Float
+  deliveryRate                  Float?
+  specialApproval               Float
+  productionLineStop            Float
+  excessFreight                 Float
+  purchaseAssessmentScoreA      Float?
+  totalPurchaseAssessmentScoreA Float?
+  servicePurchase               Float
+  assessmentScore               Float?
+  remarks                       String?      @db.Text
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
+  vendor                        SQMVQMVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, quarter, vendorId])
+  @@index([vendorId], map: "SQMVQMMonthlyReport_vendorId_fkey")
+  @@map("va_SQMVQMMonthlyReport")
+}

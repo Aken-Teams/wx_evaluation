@@ -1,0 +1,143 @@
+import { evaluateQuarter, isAUVendor } from '@wx/scoring';
+import type { QuarterlyInput } from '@wx/scoring';
+import { prisma } from '../../db/prisma';
+import { notFound } from '../../lib/httpError';
+
+export type Quarter = 'Q1' | 'Q2' | 'Q3' | 'Q4';
+
+/** DB 原始欄位（或使用者輸入）→ 評分引擎輸入 */
+const toScoringInput = (
+  r: {
+    receivedBatches: number;
+    returnedBatches: number;
+    externalCAR: number;
+    arr: number;
+    untimelyResponseCCR: number;
+    serviceQuality: number;
+    servicePurchase: number;
+    deliveryRate: number | null;
+    specialApproval: number;
+    productionLineStop: number;
+  },
+  isAU: boolean,
+): QuarterlyInput => ({
+  receivedBatches: r.receivedBatches ?? 0,
+  returnedBatches: r.returnedBatches ?? 0,
+  externalCAR: r.externalCAR ?? 0,
+  arr: r.arr ?? 0,
+  untimelyResponseCCR: r.untimelyResponseCCR ?? 0,
+  serviceQuality: r.serviceQuality ?? 0,
+  servicePurchase: r.servicePurchase ?? 0,
+  deliveryRate: r.deliveryRate ?? null,
+  specialApproval: r.specialApproval ?? 0,
+  productionLineStop: r.productionLineStop ?? 0,
+  isAU,
+});
+
+/** 取得某年某季所有供應商的評比（分數即時由引擎計算，非讀舊存值） */
+export const getQuarterly = async (year: number, quarter: Quarter) => {
+  const reports = await prisma.sQMVQMMonthlyReport.findMany({
+    where: { year, quarter },
+    include: { vendor: true },
+    orderBy: { vendor: { name: 'asc' } },
+  });
+
+  return reports.map((r) => {
+    const isAU = isAUVendor(r.vendor.isAU);
+    const score = evaluateQuarter(toScoringInput(r, isAU));
+    return {
+      vendorId: r.vendorId,
+      vendorName: r.vendor.name,
+      isAU,
+      raw: {
+        receivedBatches: r.receivedBatches,
+        returnedBatches: r.returnedBatches,
+        externalCAR: r.externalCAR,
+        arr: r.arr,
+        untimelyResponseCCR: r.untimelyResponseCCR,
+        serviceQuality: r.serviceQuality,
+        servicePurchase: r.servicePurchase,
+        deliveryRate: r.deliveryRate,
+        specialApproval: r.specialApproval,
+        productionLineStop: r.productionLineStop,
+        remarks: r.remarks,
+      },
+      score,
+    };
+  });
+};
+
+export interface EvaluationItemInput {
+  vendorId: number;
+  receivedQuantity: string;
+  returnedQuantity: string;
+  receivedBatches: number;
+  returnedBatches: number;
+  arr: number;
+  lrr: number;
+  externalCAR: number;
+  untimelyResponseCCR: number;
+  others: number;
+  serviceQuality: number;
+  lateDelivery: number;
+  deliveryRate: number | null;
+  specialApproval: number;
+  productionLineStop: number;
+  excessFreight: number;
+  servicePurchase: number;
+  remarks?: string | null;
+}
+
+/**
+ * 儲存某年某季的評比（整批）。
+ * - 分數一律由引擎重算（不信任前端傳來的分數）
+ * - 全批包在單一交易中：任一筆失敗則整批回滾（取代舊系統無交易、迴圈 upsert 的隱患）
+ */
+export const saveQuarterly = async (year: number, quarter: Quarter, items: EvaluationItemInput[]) => {
+  // 先驗證所有 vendorId 皆存在（交易外先讀，減少交易時間）
+  const vendorIds = items.map((i) => i.vendorId);
+  const vendors = await prisma.sQMVQMVendor.findMany({ where: { id: { in: vendorIds } } });
+  const vendorMap = new Map(vendors.map((v) => [v.id, v]));
+  for (const id of vendorIds) {
+    if (!vendorMap.has(id)) throw notFound(`供應商 id=${id} 不存在`);
+  }
+
+  return prisma.$transaction(
+    items.map((item) => {
+      const vendor = vendorMap.get(item.vendorId)!;
+      const isAU = isAUVendor(vendor.isAU);
+      const score = evaluateQuarter(toScoringInput(item, isAU));
+
+      const data = {
+        receivedQuantity: item.receivedQuantity,
+        returnedQuantity: item.returnedQuantity,
+        receivedBatches: item.receivedBatches,
+        returnedBatches: item.returnedBatches,
+        arr: item.arr,
+        lrr: item.lrr,
+        externalCAR: item.externalCAR,
+        untimelyResponseCCR: item.untimelyResponseCCR,
+        others: item.others,
+        serviceQuality: item.serviceQuality,
+        lateDelivery: item.lateDelivery,
+        deliveryRate: item.deliveryRate,
+        specialApproval: item.specialApproval,
+        productionLineStop: item.productionLineStop,
+        excessFreight: item.excessFreight,
+        servicePurchase: item.servicePurchase,
+        remarks: item.remarks ?? null,
+        // 引擎計算結果（單一真相來源）
+        totalBaseScoreB: score.quality?.carScore ?? null,
+        qualityAssessmentScoreC1: score.quality?.qualityScore ?? null,
+        totalPurchaseAssessmentScoreA: score.purchase?.purchaseScore ?? null,
+        assessmentScore: score.assessmentScore,
+      };
+
+      return prisma.sQMVQMMonthlyReport.upsert({
+        where: { year_quarter_vendorId: { year, quarter, vendorId: item.vendorId } },
+        create: { year, quarter, vendorId: item.vendorId, ...data },
+        update: data,
+      });
+    }),
+  );
+};
