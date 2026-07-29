@@ -3,6 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error';
+import { aiRouter } from './modules/ai/ai.routes';
 import { analyticsRouter } from './modules/analytics/analytics.routes';
 import { annualRouter } from './modules/annual/annual.routes';
 import { authRouter } from './modules/auth/auth.routes';
@@ -32,6 +33,7 @@ export const createApp = () => {
   app.use('/api/scoring-config', scoringConfigRouter);
   app.use('/api/background', backgroundRouter);
   app.use('/api/sourcing', sourcingRouter);
+  app.use('/api/ai', aiRouter);
 
   // 統一錯誤處理（須放在所有路由之後）
   app.use(errorHandler);

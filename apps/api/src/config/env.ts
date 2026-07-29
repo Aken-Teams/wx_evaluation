@@ -14,6 +14,10 @@ const schema = z.object({
     .string()
     .default('')
     .transform((s) => s.split(',').map((x) => x.trim()).filter(Boolean)),
+  // AI 問答（Ollama / OpenAI 相容）— 選用，未設定則優雅降級
+  OLLAMA_API_URL: z.string().default(''),
+  OLLAMA_API_KEY: z.string().default(''),
+  OLLAMA_MODEL: z.string().default('llama3.2'),
 });
 
 const parsed = schema.safeParse(process.env);

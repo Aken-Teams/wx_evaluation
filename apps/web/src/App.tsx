@@ -1,11 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth, RequireRole } from './auth/guards';
 import { AppLayout } from './components/AppLayout';
-import { Placeholder } from './components/Placeholder';
 import { ScoringConfigPage } from './features/admin/ScoringConfigPage';
 import { SupplierManagement } from './features/admin/SupplierManagement';
 import { UserManagement } from './features/admin/UserManagement';
 import { LoginPage } from './features/auth/LoginPage';
+import { AiChatPage } from './features/ai/AiChatPage';
 import { BackgroundPage } from './features/background/BackgroundPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { AnnualEvaluation } from './features/evaluation/AnnualEvaluation';
@@ -38,7 +38,7 @@ export default function App() {
         {/* 擴充模組 */}
         <Route path="/background" element={<BackgroundPage />} />
         <Route path="/sourcing" element={<SourcingPage />} />
-        <Route path="/ai" element={<Placeholder title="AI 问答助手" description="自然语言查询评比数据；未来支援 AI 供应商推荐排名。" />} />
+        <Route path="/ai" element={<AiChatPage />} />
 
         {/* 系统管理 */}
         <Route

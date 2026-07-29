@@ -150,6 +150,17 @@ export const scoringConfigApi = {
   reset: () => api.post<ScoringConfig>('/scoring-config/reset').then((r) => r.data),
 };
 
+// ── AI 问答 ──
+export interface ChatMsg {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+export const aiApi = {
+  status: () => api.get<{ configured: boolean }>('/ai/status').then((r) => r.data),
+  chat: (messages: ChatMsg[]) =>
+    api.post<{ configured: boolean; reply: string }>('/ai/chat', { messages }).then((r) => r.data),
+};
+
 // ── Analytics ──
 export const analyticsApi = {
   periods: () => api.get<Period[]>('/analytics/periods').then((r) => r.data),
