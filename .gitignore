@@ -18,6 +18,9 @@ server/.env
 .env.development
 .env.production
 
+# SSH 跳板通道機密（主機/帳號/密碼）— 只保留 .env.tunnel.example 範例
+.env.tunnel
+
 # ============================================
 # 標準忽略項目
 # ============================================
