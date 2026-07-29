@@ -1,27 +1,13 @@
 /**
  * 季度供應商評比 — 評分引擎（單一真相來源）。
  *
- * 忠實移植自現行 src/services/reportService.ts 的計算邏輯，並將常數抽至 constants.ts。
+ * 忠實移植自現行 src/services/reportService.ts 的計算邏輯，常數抽至 constants.ts，
+ * 並支援以 ScoringConfig 覆寫（預設 = 現行常數，故不覆寫時行為完全一致）。
  * 純函式、框架無關，前端與後端皆可直接引用。
  *
  * 規格：docs/評分規則_現況萃取.md
  */
-import {
-  CAR_BASE,
-  CAR_COEFF,
-  DEFAULT_DELIVERY_RATE,
-  DELIVERY_DEDUCTION_BELOW,
-  DELIVERY_DEDUCTION_LADDER,
-  DOWNGRADE_PURCHASE_THRESHOLD,
-  DOWNGRADE_QC_THRESHOLD,
-  GRADE_ORDER,
-  GRADE_THRESHOLDS,
-  LAR_LADDER,
-  LAR_SCORE_BELOW,
-  LOWEST_GRADE,
-  PRODUCTION_LINE_STOP_COEFF,
-  PURCHASE_BASE,
-} from './constants.js';
+import { defaultConfig, type ScoringConfig } from './config.js';
 import type {
   Grade,
   PurchaseResult,
@@ -31,6 +17,7 @@ import type {
 } from './types.js';
 
 export * from './types.js';
+export * from './config.js';
 export * as constants from './constants.js';
 
 /** 四捨五入至 2 位小數（與現行系統一致） */
@@ -44,16 +31,17 @@ export const round1 = (n: number): number => Math.round(n * 10) / 10;
 export const isAUVendor = (isAUText?: string | null): boolean =>
   !!isAUText && String(isAUText).toUpperCase().includes('AU');
 
-/**
- * CAR 評分（滿分 40）= max(0, 40 − 10×外部客訴 − 5×產線CAR − 3×延遲回覆)
- */
-export const calcCarScore = (input: Pick<QuarterlyInput, 'externalCAR' | 'arr' | 'untimelyResponseCCR'>): number =>
+/** CAR 評分（滿分 40）= max(0, 40 − 10×外部客訴 − 5×產線CAR − 3×延遲回覆) */
+export const calcCarScore = (
+  input: Pick<QuarterlyInput, 'externalCAR' | 'arr' | 'untimelyResponseCCR'>,
+  cfg: ScoringConfig = defaultConfig,
+): number =>
   Math.max(
     0,
-    CAR_BASE -
-      CAR_COEFF.externalCAR * input.externalCAR -
-      CAR_COEFF.arr * input.arr -
-      CAR_COEFF.untimelyResponseCCR * input.untimelyResponseCCR,
+    cfg.carBase -
+      cfg.carCoeff.externalCAR * input.externalCAR -
+      cfg.carCoeff.arr * input.arr -
+      cfg.carCoeff.untimelyResponseCCR * input.untimelyResponseCCR,
   );
 
 /** 批退良率 %：檢驗批數為 0 時視為 100（無退貨即 100%） */
@@ -61,57 +49,50 @@ export const calcLarPercent = (receivedBatches: number, returnedBatches: number)
   receivedBatches > 0 ? (1 - returnedBatches / receivedBatches) * 100 : 100;
 
 /** 依 LAR% 對照階梯取得 LAR 評分（滿分 30） */
-export const calcLarScore = (larPercent: number): number => {
-  for (const tier of LAR_LADDER) {
+export const calcLarScore = (larPercent: number, cfg: ScoringConfig = defaultConfig): number => {
+  for (const tier of cfg.larLadder) {
     if (larPercent >= tier.min) return tier.score;
   }
-  return LAR_SCORE_BELOW;
+  return cfg.larScoreBelow;
 };
 
 /** 品質構面：CAR + LAR → 品質總分（滿分 70） */
-export const calcQuality = (input: QuarterlyInput): QualityResult => {
-  const carScore = calcCarScore(input);
+export const calcQuality = (input: QuarterlyInput, cfg: ScoringConfig = defaultConfig): QualityResult => {
+  const carScore = calcCarScore(input, cfg);
   const larPercent = calcLarPercent(input.receivedBatches, input.returnedBatches);
-  const larScore = calcLarScore(larPercent);
-  return {
-    carScore,
-    larPercent,
-    larScore,
-    qualityScore: round2(larScore + carScore),
-  };
+  const larScore = calcLarScore(larPercent, cfg);
+  return { carScore, larPercent, larScore, qualityScore: round2(larScore + carScore) };
 };
 
 /** 達交率扣分（階梯） */
-export const calcDeliveryDeduction = (deliveryRate: number): number => {
-  for (const tier of DELIVERY_DEDUCTION_LADDER) {
+export const calcDeliveryDeduction = (deliveryRate: number, cfg: ScoringConfig = defaultConfig): number => {
+  for (const tier of cfg.deliveryDeductionLadder) {
     if (deliveryRate >= tier.min) return tier.deduction;
   }
-  return DELIVERY_DEDUCTION_BELOW;
+  return cfg.deliveryDeductionBelow;
 };
 
 /** 交期（採購評核）構面：滿分 20，扣分制 */
-export const calcPurchase = (input: QuarterlyInput): PurchaseResult => {
-  const deliveryRate = round1(input.deliveryRate ?? DEFAULT_DELIVERY_RATE);
-  const deliveryDeduction = calcDeliveryDeduction(deliveryRate);
+export const calcPurchase = (input: QuarterlyInput, cfg: ScoringConfig = defaultConfig): PurchaseResult => {
+  const deliveryRate = round1(input.deliveryRate ?? 100);
+  const deliveryDeduction = calcDeliveryDeduction(deliveryRate, cfg);
   const purchaseScore = Math.max(
     0,
-    PURCHASE_BASE - deliveryDeduction - input.productionLineStop * PRODUCTION_LINE_STOP_COEFF - input.specialApproval,
+    cfg.purchaseBase - deliveryDeduction - input.productionLineStop * cfg.productionLineStopCoeff - input.specialApproval,
   );
   return { deliveryRate, deliveryDeduction, purchaseScore };
 };
 
 /** 綜合評分 → 等級（依 AU / Non-AU 採不同門檻，區間為「下界不含、上界含」） */
-export const gradeFromScore = (score: number, isAU: boolean): Grade => {
-  const table = isAU ? GRADE_THRESHOLDS.AU : GRADE_THRESHOLDS.nonAU;
+export const gradeFromScore = (score: number, isAU: boolean, cfg: ScoringConfig = defaultConfig): Grade => {
+  const table = isAU ? cfg.gradeThresholds.AU : cfg.gradeThresholds.nonAU;
   for (const tier of table) {
-    if (score > tier.gt) return tier.grade as Grade;
+    if (score > tier.gt) return tier.grade;
   }
-  return LOWEST_GRADE;
+  return 'E';
 };
 
-/**
- * 本季無交易判定：檢驗批數、退貨批數、外部客訴、產線CAR、延遲回覆、服務評分皆為 0。
- */
+/** 本季無交易判定 */
 export const isNoTransaction = (input: QuarterlyInput): boolean =>
   input.receivedBatches === 0 &&
   input.returnedBatches === 0 &&
@@ -121,19 +102,15 @@ export const isNoTransaction = (input: QuarterlyInput): boolean =>
   input.serviceQuality === 0 &&
   input.servicePurchase === 0;
 
-/**
- * 單季降級規則（規則 1~3）：品質或交期過低時降一級。
- * - A：品質 < 56 或 交期 < 15 → 降 B
- * - B：品質 < 56 或 交期 < 15 → 降 C
- * - C：品質 < 56 且 交期 < 15 → 降 D
- */
+/** 單季降級規則（規則 1~3）：品質或交期過低時降一級。 */
 const applySingleQuarterDowngrade = (
   grade: Grade,
   qualityScore: number,
   purchaseScore: number,
+  cfg: ScoringConfig,
 ): { finalGrade: Grade; downgraded: boolean } => {
-  const qcLow = qualityScore < DOWNGRADE_QC_THRESHOLD;
-  const purLow = purchaseScore < DOWNGRADE_PURCHASE_THRESHOLD;
+  const qcLow = qualityScore < cfg.downgradeQcThreshold;
+  const purLow = purchaseScore < cfg.downgradePurchaseThreshold;
   const dA = grade === 'A' && (qcLow || purLow);
   const dB = grade === 'B' && (qcLow || purLow);
   const dC = grade === 'C' && qcLow && purLow;
@@ -148,13 +125,10 @@ const applySingleQuarterDowngrade = (
 };
 
 /** 一家供應商一季的完整評比 */
-export const evaluateQuarter = (input: QuarterlyInput): QuarterlyResult => {
-  // 元件分數（品質/交期）一律計算並保留，與現行系統一致——
-  // 即使全零列，也存 CAR=40 / 品質=70 / 交期=20 的預設滿分。
-  const quality = calcQuality(input);
-  const purchase = calcPurchase(input);
+export const evaluateQuarter = (input: QuarterlyInput, cfg: ScoringConfig = defaultConfig): QuarterlyResult => {
+  const quality = calcQuality(input, cfg);
+  const purchase = calcPurchase(input, cfg);
 
-  // 「本季無交易」僅影響綜合層級：服務/綜合評分/等級/降級六欄標記為 null（畫面顯示「—」）。
   if (isNoTransaction(input)) {
     return {
       noTransaction: true,
@@ -170,35 +144,24 @@ export const evaluateQuarter = (input: QuarterlyInput): QuarterlyResult => {
 
   const serviceScore = round2(input.serviceQuality + input.servicePurchase);
   const assessmentScore = round2(quality.qualityScore + purchase.purchaseScore + serviceScore);
-  const grade = gradeFromScore(assessmentScore, input.isAU);
-  const { finalGrade, downgraded } = applySingleQuarterDowngrade(grade, quality.qualityScore, purchase.purchaseScore);
+  const grade = gradeFromScore(assessmentScore, input.isAU, cfg);
+  const { finalGrade, downgraded } = applySingleQuarterDowngrade(grade, quality.qualityScore, purchase.purchaseScore, cfg);
 
-  return {
-    noTransaction: false,
-    quality,
-    purchase,
-    serviceScore,
-    assessmentScore,
-    grade,
-    downgraded,
-    finalGrade,
-  };
+  return { noTransaction: false, quality, purchase, serviceScore, assessmentScore, grade, downgraded, finalGrade };
 };
 
-/**
- * 跨季連續降級（規則 4）：本季與上一季等級皆為 C 或 D → 再降一級（E 為底不再降）。
- * 回傳套用後的等級與是否觸發。
- */
+/** 跨季連續降級（規則 4）：本季與上一季等級皆為 C 或 D → 再降一級。 */
 export const applyConsecutiveDowngrade = (
   currentGrade: Grade | null,
   prevGrade: Grade | null,
 ): { grade: Grade | null; consecutiveDowngrade: boolean } => {
   if (!currentGrade || !prevGrade) return { grade: currentGrade, consecutiveDowngrade: false };
+  const order: Grade[] = ['A', 'B', 'C', 'D', 'E'];
   const isLow = (g: Grade) => g === 'C' || g === 'D';
   if (isLow(currentGrade) && isLow(prevGrade)) {
-    const idx = GRADE_ORDER.indexOf(currentGrade);
-    const next = idx < GRADE_ORDER.length - 1 ? GRADE_ORDER[idx + 1] : currentGrade;
-    return { grade: next as Grade, consecutiveDowngrade: true };
+    const idx = order.indexOf(currentGrade);
+    const next = idx < order.length - 1 ? order[idx + 1]! : currentGrade;
+    return { grade: next, consecutiveDowngrade: true };
   }
   return { grade: currentGrade, consecutiveDowngrade: false };
 };

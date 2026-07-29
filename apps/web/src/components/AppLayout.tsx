@@ -1,10 +1,21 @@
 import {
-  BarChartOutlined,
+  ApartmentOutlined,
+  AuditOutlined,
+  CalendarOutlined,
+  DashboardOutlined,
+  DollarOutlined,
   FormOutlined,
   LogoutOutlined,
+  RobotOutlined,
   SafetyCertificateOutlined,
+  SettingOutlined,
+  ShopOutlined,
+  SlidersOutlined,
+  SolutionOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { Avatar, Dropdown, Layout, Menu, Typography } from 'antd';
+import type { MenuProps } from 'antd';
 import { useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -24,20 +35,60 @@ export function AppLayout() {
   const nav = useNavigate();
   const loc = useLocation();
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'quality_yearly_editor';
 
-  const menuItems = useMemo(
+  const menuItems: MenuProps['items'] = useMemo(
     () => [
-      { key: '/dashboard', icon: <BarChartOutlined />, label: '分析仪表板' },
-      { key: '/evaluation', icon: <FormOutlined />, label: '季度评比' },
+      { key: '/dashboard', icon: <DashboardOutlined />, label: '分析仪表板' },
+      {
+        key: 'sqmvqm',
+        icon: <AuditOutlined />,
+        label: 'SQM/VQM 评比',
+        children: [
+          { key: '/sqmvqm/quarterly', icon: <FormOutlined />, label: '季度评比' },
+          { key: '/sqmvqm/yearly', icon: <CalendarOutlined />, label: '年度评鉴' },
+        ],
+      },
+      { key: '/osat', icon: <ApartmentOutlined />, label: 'OSAT 评比' },
+      { key: '/background', icon: <SolutionOutlined />, label: '背调分析' },
+      { key: '/sourcing', icon: <DollarOutlined />, label: '比价寻源' },
+      { key: '/ai', icon: <RobotOutlined />, label: 'AI 问答' },
+      ...(isAdmin
+        ? [
+            {
+              key: 'admin',
+              icon: <SettingOutlined />,
+              label: '系统管理',
+              children: [
+                { key: '/admin/suppliers', icon: <ShopOutlined />, label: '供应商管理' },
+                { key: '/admin/users', icon: <TeamOutlined />, label: '帐号管理' },
+                { key: '/admin/scoring', icon: <SlidersOutlined />, label: '评分设定' },
+              ],
+            },
+          ]
+        : []),
     ],
-    [],
+    [isAdmin],
   );
 
-  const selectedKey = menuItems.find((m) => loc.pathname.startsWith(m.key))?.key ?? '/dashboard';
+  // 依路徑找出選中的葉節點
+  const leafKeys = [
+    '/dashboard',
+    '/sqmvqm/quarterly',
+    '/sqmvqm/yearly',
+    '/osat',
+    '/background',
+    '/sourcing',
+    '/ai',
+    '/admin/suppliers',
+    '/admin/users',
+    '/admin/scoring',
+  ];
+  const selectedKey = leafKeys.find((k) => loc.pathname.startsWith(k)) ?? '/dashboard';
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider theme="dark" width={216} breakpoint="lg" collapsedWidth={0}>
+      <Sider theme="dark" width={220} breakpoint="lg" collapsedWidth={0}>
         <div
           style={{
             height: 56,
@@ -55,8 +106,11 @@ export function AppLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
+          defaultOpenKeys={['sqmvqm', 'admin']}
           items={menuItems}
-          onClick={({ key }) => nav(key)}
+          onClick={({ key }) => {
+            if (key.startsWith('/')) nav(key);
+          }}
         />
       </Sider>
       <Layout>

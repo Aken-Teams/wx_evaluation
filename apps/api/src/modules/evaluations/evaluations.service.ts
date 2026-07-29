@@ -2,6 +2,7 @@ import { evaluateQuarter, isAUVendor } from '@wx/scoring';
 import type { QuarterlyInput } from '@wx/scoring';
 import { prisma } from '../../db/prisma';
 import { notFound } from '../../lib/httpError';
+import { getConfig } from '../scoring-config/scoring-config.service';
 
 export type Quarter = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
@@ -36,15 +37,18 @@ const toScoringInput = (
 
 /** 取得某年某季所有供應商的評比（分數即時由引擎計算，非讀舊存值） */
 export const getQuarterly = async (year: number, quarter: Quarter) => {
-  const reports = await prisma.sQMVQMMonthlyReport.findMany({
-    where: { year, quarter },
-    include: { vendor: true },
-    orderBy: { vendor: { name: 'asc' } },
-  });
+  const [reports, cfg] = await Promise.all([
+    prisma.sQMVQMMonthlyReport.findMany({
+      where: { year, quarter },
+      include: { vendor: true },
+      orderBy: { vendor: { name: 'asc' } },
+    }),
+    getConfig(),
+  ]);
 
   return reports.map((r) => {
     const isAU = isAUVendor(r.vendor.isAU);
-    const score = evaluateQuarter(toScoringInput(r, isAU));
+    const score = evaluateQuarter(toScoringInput(r, isAU), cfg);
     return {
       vendorId: r.vendorId,
       vendorName: r.vendor.name,
@@ -96,7 +100,10 @@ export interface EvaluationItemInput {
 export const saveQuarterly = async (year: number, quarter: Quarter, items: EvaluationItemInput[]) => {
   // 先驗證所有 vendorId 皆存在（交易外先讀，減少交易時間）
   const vendorIds = items.map((i) => i.vendorId);
-  const vendors = await prisma.sQMVQMVendor.findMany({ where: { id: { in: vendorIds } } });
+  const [vendors, cfg] = await Promise.all([
+    prisma.sQMVQMVendor.findMany({ where: { id: { in: vendorIds } } }),
+    getConfig(),
+  ]);
   const vendorMap = new Map(vendors.map((v) => [v.id, v]));
   for (const id of vendorIds) {
     if (!vendorMap.has(id)) throw notFound(`供應商 id=${id} 不存在`);
@@ -106,7 +113,7 @@ export const saveQuarterly = async (year: number, quarter: Quarter, items: Evalu
     items.map((item) => {
       const vendor = vendorMap.get(item.vendorId)!;
       const isAU = isAUVendor(vendor.isAU);
-      const score = evaluateQuarter(toScoringInput(item, isAU));
+      const score = evaluateQuarter(toScoringInput(item, isAU), cfg);
 
       const data = {
         receivedQuantity: item.receivedQuantity,
