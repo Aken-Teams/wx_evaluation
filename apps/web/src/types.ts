@@ -96,3 +96,83 @@ export interface SummaryResponse {
 export interface TrendPoint extends PeriodSummary {
   quarter: Quarter;
 }
+
+export interface AnnualRow {
+  vendorId: number;
+  vendorName: string;
+  supplierType: string;
+  quarterScores: Record<Quarter, number | null>;
+  tradingQuarters: number;
+  totalReceivedBatches: number;
+  audit: { VDA: number | null; QSA: number | null; QPA: number | null; HSF: number | null; CSR: number | null };
+  others: number | null;
+  nextYearAuditType: string;
+  remarks: string | null;
+  monthlyAssessmentAverage: number | null;
+  auditComponent: number;
+  annualScore: number | null;
+  grade: Grade | null;
+}
+
+export interface OsatPeriod {
+  year: number;
+  month: number;
+}
+
+export interface OsatRow {
+  vendorId: number;
+  vendorName: string;
+  factory: string;
+  shipmentQuantity: string;
+  receivedBatches: number;
+  returnedBatches: number;
+  totalComplaintCCR: number;
+  qualityAssessmentScore: number | null;
+  purchaseAssessmentScoreA: number | null;
+  assessmentScore: number | null;
+  remarks: string | null;
+}
+
+export interface BackgroundRow {
+  vendorId: number;
+  vendorName: string;
+  region: string | null;
+  latePaymentCount: number;
+  customerComplaintCount: number;
+  qualityAbnormal8D: number;
+  cooperationScore: number | null;
+  notes: string | null;
+}
+
+export interface SourcingEvent {
+  id: number;
+  title: string;
+  itemName: string | null;
+  description: string | null;
+  status: string;
+  createdAt: string;
+  _count?: { quotes: number };
+}
+
+export interface SourcingQuote {
+  id: number;
+  eventId: number;
+  supplierName: string;
+  stage: string;
+  moldItems: string | null;
+  moldPriceTaxed: number | null;
+  productUnitPrice: number | null;
+  unitPriceTotal: number | null;
+  sampleLeadTime: string | null;
+  deliveryCycle: string | null;
+  paymentTerms: string | null;
+  moldPaymentTerms: string | null;
+  priceTier: string | null;
+  backgroundInfo: string | null;
+  evaluation: string | null;
+  isBest: boolean;
+}
+
+export interface SourcingEventDetail extends SourcingEvent {
+  quotes: SourcingQuote[];
+}

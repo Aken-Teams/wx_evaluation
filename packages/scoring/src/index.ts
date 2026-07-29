@@ -18,6 +18,7 @@ import type {
 
 export * from './types.js';
 export * from './config.js';
+export * from './annual.js';
 export * as constants from './constants.js';
 
 /** 四捨五入至 2 位小數（與現行系統一致） */

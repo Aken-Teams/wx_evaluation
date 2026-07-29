@@ -32,8 +32,134 @@ model SQMVQMVendor {
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   monthlyReports   SQMVQMMonthlyReport[]
+  annualInputs     SQMVQMAnnualInput[]
+  backgroundChecks BackgroundCheck[]
 
   @@map("va_SQMVQMVendor")
+}
+
+/// 背調分析：供應商背景調查（每供應商每年一筆）。對應比價信息表的「背調信息」四維度。
+model BackgroundCheck {
+  id                     Int          @id @default(autoincrement())
+  vendorId               Int
+  year                   Int
+  latePaymentCount       Int          @default(0) // 拖欠貨款頻次
+  customerComplaintCount Int          @default(0) // 年度被客戶投訴頻次
+  qualityAbnormal8D      Int          @default(0) // 年度品質異常頻次(8D)
+  cooperationScore       Int? // 與客戶的配合度（0~100；配合加急出貨/品質改善）
+  notes                  String?      @db.Text // 其他背調資訊（不限於以上）
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  vendor                 SQMVQMVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([vendorId, year])
+  @@index([vendorId], map: "BackgroundCheck_vendorId_fkey")
+  @@map("va_BackgroundCheck")
+}
+
+/// 比價尋源：一個比價案件（針對某品項/開模），底下有多家候選供應商報價。
+model SourcingEvent {
+  id          Int             @id @default(autoincrement())
+  title       String // 案件名稱（例：TO-277B MAX 開模）
+  itemName    String? // 品項
+  description String?         @db.Text
+  status      String          @default("open") // open / decided
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  quotes      SourcingQuote[]
+
+  @@map("va_SourcingEvent")
+}
+
+/// 比價報價：某案件中一家候選供應商的一筆報價（含議價前/後）。
+model SourcingQuote {
+  id               Int           @id @default(autoincrement())
+  eventId          Int
+  supplierName     String // 供方名稱（自由文字，未必在供應商主檔）
+  stage            String        @default("after") // before(議價前) / after(議價後)
+  moldItems        String? // 開發模具品項
+  moldPriceTaxed   Float? // 模具含稅價（萬元）
+  productUnitPrice Float? // 產品未稅單價（元/K）
+  unitPriceTotal   Float? // 單價合計
+  sampleLeadTime   String? // 樣品交期
+  deliveryCycle    String? // 交貨周期
+  paymentTerms     String? // 賬期
+  moldPaymentTerms String? // 模具款條件
+  priceTier        String? // 參考金屬級距
+  backgroundInfo   String?       @db.Text // 背調信息
+  evaluation       String?       @db.Text // 綜合評估
+  isBest           Boolean       @default(false) // 最優一家
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  event            SourcingEvent @relation(fields: [eventId], references: [id])
+
+  @@index([eventId])
+  @@map("va_SourcingQuote")
+}
+
+model SQMVQMAnnualInput {
+  id                Int          @id @default(autoincrement())
+  year              Int
+  vendorId          Int
+  VDA               Float?
+  QSA               Float?
+  QPA               Float?
+  HSF               Float?
+  CSR               Float?
+  others            Float?
+  nextYearAuditType String?
+  remarks           String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  vendor            SQMVQMVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, vendorId])
+  @@index([vendorId], map: "SQMVQMAnnualInput_vendorId_fkey")
+  @@map("va_SQMVQMAnnualInput")
+}
+
+model OSATVendor {
+  id             Int                 @id @default(autoincrement())
+  name           String              @unique
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  monthlyReports OSATMonthlyReport[]
+
+  @@map("va_OSATVendor")
+}
+
+model OSATMonthlyReport {
+  id                  Int        @id @default(autoincrement())
+  year                Int
+  month               Int
+  vendorId            Int
+  factory             String     @default("gangshan")
+  shipmentQuantity    String
+  receivedBatches     Int
+  returnedBatches     Int
+  totalComplaintCCR   Float
+  severeComplaintCCR  Float
+  generalComplaintCCR Float
+  timelyResponseCCR   Float
+  untimelyResponseCCR Float
+  others              Float
+  serviceQuality      Float
+  lateDelivery        Float
+  specialApproval     Float
+  productionLineStop  Float
+  excessFreight       Float
+  servicePurchase     Float
+  qualityAssessmentScore Float?
+  purchaseAssessmentScoreA Float?
+  assessmentScore     Float?
+  remarks             String?    @db.Text
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  vendor              OSATVendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([year, month, vendorId, factory])
+  @@index([vendorId], map: "OSATMonthlyReport_vendorId_fkey")
+  @@map("va_OSATMonthlyReport")
 }
 
 model SQMVQMMonthlyReport {
