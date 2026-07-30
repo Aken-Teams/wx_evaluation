@@ -1,4 +1,4 @@
-import { KeyOutlined, PlusOutlined } from '@ant-design/icons';
+import { KeyOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App as AntApp,
@@ -19,6 +19,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
 import { usersApi } from '../../api';
 import { apiErrorMessage } from '../../lib/api';
+import { PageHeader } from '../../components/PageHeader';
 import { ROLE_OPTIONS, type UserRow } from '../../types';
 
 const roleLabel = (r: string) => ROLE_OPTIONS.find((o) => o.value === r)?.label ?? r;
@@ -116,21 +117,23 @@ export function UserManagement() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          帐号管理
-        </Typography.Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            form.resetFields();
-            setOpen(true);
-          }}
-        >
-          新增帐号
-        </Button>
-      </Space>
+      <PageHeader
+        icon={<TeamOutlined />}
+        title="帐号管理"
+        subtitle={`共 ${listQuery.data?.length ?? 0} 个帐号 · 可切换角色 / 启用 / 重置密码`}
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              form.resetFields();
+              setOpen(true);
+            }}
+          >
+            新增帐号
+          </Button>
+        }
+      />
 
       <Card variant="borderless" styles={{ body: { padding: 0 } }}>
         <Table<UserRow>

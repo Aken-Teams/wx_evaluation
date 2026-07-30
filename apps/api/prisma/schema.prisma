@@ -77,10 +77,12 @@ model SourcingQuote {
   eventId          Int
   supplierName     String // 供方名稱（自由文字，未必在供應商主檔）
   stage            String        @default("after") // before(議價前) / after(議價後)
-  moldItems        String? // 開發模具品項
-  moldPriceTaxed   Float? // 模具含稅價（萬元）
-  productUnitPrice Float? // 產品未稅單價（元/K）
+  moldItems        String? // 開發模具品項（文字描述）
+  products         Json? // 多產品明細：[{ name, moldPrice, unitPrice }]（腳架/框架、跳線…）
+  moldPriceTaxed   Float? // 模具含稅總價（萬元）
+  productUnitPrice Float? // （舊）產品未稅單價（元/K）
   unitPriceTotal   Float? // 單價合計
+  tierUnitPrice    Float? // 級距單價
   sampleLeadTime   String? // 樣品交期
   deliveryCycle    String? // 交貨周期
   paymentTerms     String? // 賬期

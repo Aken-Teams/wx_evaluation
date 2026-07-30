@@ -2,16 +2,16 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth, RequireRole } from './auth/guards';
 import { AppLayout } from './components/AppLayout';
 import { ScoringConfigPage } from './features/admin/ScoringConfigPage';
-import { SupplierManagement } from './features/admin/SupplierManagement';
 import { UserManagement } from './features/admin/UserManagement';
 import { LoginPage } from './features/auth/LoginPage';
-import { AiChatPage } from './features/ai/AiChatPage';
-import { BackgroundPage } from './features/background/BackgroundPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { AnnualEvaluation } from './features/evaluation/AnnualEvaluation';
-import { EvaluationWorkbench } from './features/evaluation/EvaluationWorkbench';
+import { QuarterlyPage } from './features/evaluation/QuarterlyPage';
+import { HomePage } from './features/home/HomePage';
 import { OsatPage } from './features/osat/OsatPage';
 import { SourcingPage } from './features/sourcing/SourcingPage';
+import { SupplierDirectory } from './features/suppliers/SupplierDirectory';
+import { SupplierProfile } from './features/suppliers/SupplierProfile';
 
 const ADMIN = ['admin', 'quality_yearly_editor'];
 
@@ -26,29 +26,24 @@ export default function App() {
           </RequireAuth>
         }
       >
+        <Route path="/home" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
 
+        {/* 供应商情报（目录 + 360 档案） */}
+        <Route path="/suppliers" element={<SupplierDirectory />} />
+        <Route path="/suppliers/:id" element={<SupplierProfile />} />
+
         {/* SQM/VQM 模組 */}
-        <Route path="/sqmvqm/quarterly" element={<EvaluationWorkbench />} />
+        <Route path="/sqmvqm/quarterly" element={<QuarterlyPage />} />
         <Route path="/sqmvqm/yearly" element={<AnnualEvaluation />} />
 
         {/* OSAT 模組（读现有表，资料空则优雅显示） */}
         <Route path="/osat" element={<OsatPage />} />
 
-        {/* 擴充模組 */}
-        <Route path="/background" element={<BackgroundPage />} />
+        {/* 比价寻源（背调已并入比价与供应商档案） */}
         <Route path="/sourcing" element={<SourcingPage />} />
-        <Route path="/ai" element={<AiChatPage />} />
 
         {/* 系统管理 */}
-        <Route
-          path="/admin/suppliers"
-          element={
-            <RequireRole roles={ADMIN}>
-              <SupplierManagement />
-            </RequireRole>
-          }
-        />
         <Route
           path="/admin/users"
           element={
@@ -66,7 +61,7 @@ export default function App() {
           }
         />
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Route>
     </Routes>
   );

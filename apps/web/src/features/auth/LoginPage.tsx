@@ -10,7 +10,7 @@ export function LoginPage() {
   const nav = useNavigate();
   const loc = useLocation();
   const [loading, setLoading] = useState(false);
-  const from = (loc.state as { from?: string })?.from ?? '/dashboard';
+  const from = (loc.state as { from?: string })?.from ?? '/home';
 
   const onFinish = async (v: { username: string; password: string }) => {
     setLoading(true);

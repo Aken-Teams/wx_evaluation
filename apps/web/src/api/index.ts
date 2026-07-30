@@ -13,6 +13,7 @@ import type {
   SourcingEventDetail,
   SourcingQuote,
   Supplier,
+  SupplierProfile,
   SummaryResponse,
   TrendPoint,
   UserRow,
@@ -37,6 +38,7 @@ export interface SupplierInput {
 
 export const suppliersApi = {
   list: () => api.get<Supplier[]>('/suppliers').then((r) => r.data),
+  profile: (id: number) => api.get<SupplierProfile>(`/suppliers/${id}/profile`).then((r) => r.data),
   create: (data: SupplierInput) => api.post<Supplier>('/suppliers', data).then((r) => r.data),
   update: (id: number, data: SupplierInput) => api.put<Supplier>(`/suppliers/${id}`, data).then((r) => r.data),
   remove: (id: number) => api.delete(`/suppliers/${id}`).then((r) => r.data),

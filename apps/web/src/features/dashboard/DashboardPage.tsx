@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Col, Empty, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -30,6 +31,7 @@ import type { Period, Quarter, RankingItem } from '../../types';
 const RADAR_COLORS = ['#1a56db', '#0e9f6e', '#e3a008', '#ff8a4c', '#9333ea'];
 
 export function DashboardPage() {
+  const nav = useNavigate();
   const [period, setPeriod] = useState<Period | null>(null);
   const periodsQuery = useQuery({ queryKey: ['periods'], queryFn: analyticsApi.periods });
 
@@ -42,6 +44,24 @@ export function DashboardPage() {
     queryFn: () => analyticsApi.summary(period!.year, period!.quarter),
     enabled: !!period,
   });
+
+  // 上一季（用于环比）
+  const periodsList = periodsQuery.data ?? [];
+  const curIdx = periodsList.findIndex((p) => p.year === period?.year && p.quarter === period?.quarter);
+  const prevPeriod = curIdx >= 0 ? periodsList[curIdx + 1] : undefined;
+  const prevSummaryQuery = useQuery({
+    queryKey: ['summary', prevPeriod?.year, prevPeriod?.quarter],
+    queryFn: () => analyticsApi.summary(prevPeriod!.year, prevPeriod!.quarter),
+    enabled: !!prevPeriod,
+  });
+  const deltaMap = useMemo(() => {
+    const m = new Map<number, number>();
+    const pm = new Map((prevSummaryQuery.data?.ranking ?? []).map((r) => [r.vendorId, r.score ?? 0]));
+    (summaryQuery.data?.ranking ?? []).forEach((r) => {
+      if (r.score != null && pm.has(r.vendorId)) m.set(r.vendorId, r.score - (pm.get(r.vendorId) ?? 0));
+    });
+    return m;
+  }, [summaryQuery.data, prevSummaryQuery.data]);
   const trendQuery = useQuery({
     queryKey: ['trend', period?.year],
     queryFn: () => analyticsApi.trend(period!.year),
@@ -97,23 +117,33 @@ export function DashboardPage() {
       dataIndex: 'vendorName',
       render: (n: string, r) => (
         <Space size={4}>
-          {n}
+          <a onClick={() => nav(`/suppliers/${r.vendorId}`)}>{n}</a>
           {r.isAU && <Tag color="geekblue">AU</Tag>}
           {r.downgraded && <Tag color="error">降级</Tag>}
         </Space>
       ),
     },
-    { title: '品质', dataIndex: 'quality', width: 72, align: 'center' },
-    { title: '交期', dataIndex: 'purchase', width: 72, align: 'center' },
-    { title: '服务', dataIndex: 'service', width: 72, align: 'center' },
+    { title: '品质', dataIndex: 'quality', width: 68, align: 'center' },
+    { title: '交期', dataIndex: 'purchase', width: 68, align: 'center' },
+    { title: '服务', dataIndex: 'service', width: 68, align: 'center' },
     {
       title: '综合',
       dataIndex: 'score',
-      width: 80,
+      width: 76,
       align: 'center',
       render: (v: number | null) => <b>{v ?? '—'}</b>,
     },
-    { title: '等级', width: 72, align: 'center', render: (_, r) => <GradeTag grade={r.grade} /> },
+    {
+      title: '环比',
+      width: 76,
+      align: 'center',
+      render: (_, r) => {
+        const d = deltaMap.get(r.vendorId);
+        if (d == null) return '—';
+        return <span style={{ color: d > 0.05 ? '#0e9f6e' : d < -0.05 ? '#e02424' : undefined }}>{d > 0 ? '+' : ''}{d.toFixed(1)}</span>;
+      },
+    },
+    { title: '等级', width: 68, align: 'center', render: (_, r) => <GradeTag grade={r.grade} /> },
   ];
 
   if (!period && !periodsQuery.isLoading) return <Empty description="尚无评比资料" />;
@@ -214,7 +244,7 @@ export function DashboardPage() {
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={top10} layout="vertical" margin={{ left: 40, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} />
+                  <XAxis type="number" domain={[(dataMin: number) => Math.max(0, Math.floor(dataMin) - 1), 100]} allowDataOverflow />
                   <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 12 }} />
                   <Tooltip />
                   <Bar dataKey="score" fill="#1a56db" radius={[0, 4, 4, 0]} barSize={16} />

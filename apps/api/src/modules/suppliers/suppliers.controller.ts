@@ -32,6 +32,15 @@ export const getOne: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const getProfile: RequestHandler = async (req, res, next) => {
+  try {
+    const { id } = req.params as unknown as z.infer<typeof idParamSchema>;
+    res.json(await service.getProfile(id));
+  } catch (e) {
+    next(e);
+  }
+};
+
 export const create: RequestHandler = async (req, res, next) => {
   try {
     res.status(201).json(await service.createSupplier(req.body as z.infer<typeof supplierSchema>));

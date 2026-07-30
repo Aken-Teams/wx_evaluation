@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, MinusCircleOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App as AntApp,
@@ -18,10 +18,17 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useState } from 'react';
-import { sourcingApi, type QuoteInput } from '../../api';
+import { useEffect, useMemo, useState } from 'react';
+import { backgroundApi, sourcingApi, suppliersApi, type QuoteInput } from '../../api';
 import { apiErrorMessage } from '../../lib/api';
-import type { SourcingQuote } from '../../types';
+import type { BackgroundRow, SourcingQuote } from '../../types';
+
+const CUR_YEAR = 2026;
+const bgRiskLevel = (b: BackgroundRow | undefined) => {
+  if (!b) return null;
+  const n = b.latePaymentCount + b.customerComplaintCount + b.qualityAbnormal8D;
+  return { n, text: n === 0 ? '正常' : n <= 2 ? '关注' : '偏高', color: n === 0 ? 'green' : n <= 2 ? 'gold' : 'red' };
+};
 
 export function SourcingPage() {
   const { message } = AntApp.useApp();
@@ -43,6 +50,31 @@ export function SourcingPage() {
     queryFn: () => sourcingApi.getEvent(selected!),
     enabled: selected !== null,
   });
+
+  // 背调带入比价：供应商名称 → 结构化背调风险（让背调影响选商决策）
+  const suppliersQuery = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list });
+  const bgQuery = useQuery({ queryKey: ['background', CUR_YEAR], queryFn: () => backgroundApi.get(CUR_YEAR) });
+  const bgByName = useMemo(() => {
+    const suppliers = suppliersQuery.data ?? [];
+    const bgById = new Map((bgQuery.data ?? []).map((b) => [b.vendorId, b]));
+    return (name: string) => {
+      const v = suppliers.find((s) => s.name.includes(name) || name.includes(s.name));
+      return v ? bgRiskLevel(bgById.get(v.id)) : null;
+    };
+  }, [suppliersQuery.data, bgQuery.data]);
+
+  // 议价前后对比：同一供应商同时有 议价前 + 议价后
+  const negotiationPairs = useMemo(() => {
+    const quotes = detailQuery.data?.quotes ?? [];
+    const byName = new Map<string, { before?: SourcingQuote; after?: SourcingQuote }>();
+    for (const q of quotes) {
+      const e = byName.get(q.supplierName) ?? {};
+      if (q.stage === 'before') e.before = q;
+      else e.after = q;
+      byName.set(q.supplierName, e);
+    }
+    return [...byName.entries()].filter(([, v]) => v.before && v.after).map(([name, v]) => ({ name, before: v.before!, after: v.after! }));
+  }, [detailQuery.data]);
 
   const refetchAll = () => {
     qc.invalidateQueries({ queryKey: ['sourcing-events'] });
@@ -112,6 +144,16 @@ export function SourcingPage() {
     setQuoteModal(true);
   };
 
+  // 價差浮動比例：各家 vs 最低價（決策用）
+  const eventQuotes = detailQuery.data?.quotes ?? [];
+  const minMold = Math.min(...eventQuotes.map((q) => q.moldPriceTaxed ?? Infinity));
+  const minUnit = Math.min(...eventQuotes.map((q) => q.unitPriceTotal ?? Infinity));
+  const fluctuation = (val: number | null, min: number) => {
+    if (val == null || !isFinite(min) || min <= 0) return <span>—</span>;
+    const d = ((val - min) / min) * 100;
+    return d < 0.05 ? <span style={{ color: '#0e9f6e' }}>最低</span> : <span style={{ color: '#e02424' }}>+{d.toFixed(1)}%</span>;
+  };
+
   const quoteColumns: ColumnsType<SourcingQuote> = [
     {
       title: '供方',
@@ -122,15 +164,54 @@ export function SourcingPage() {
         <Space size={4}>
           {q.isBest && <StarFilled style={{ color: '#e3a008' }} />}
           <b>{n}</b>
+          {q.unitPriceTotal != null && q.unitPriceTotal === minUnit && <Tag color="green">价优</Tag>}
         </Space>
       ),
     },
-    { title: '阶段', dataIndex: 'stage', width: 80, render: (s: string) => <Tag>{s === 'before' ? '议价前' : '议价后'}</Tag> },
-    { title: '模具品项', dataIndex: 'moldItems', width: 140 },
-    { title: '模具含税(万)', dataIndex: 'moldPriceTaxed', width: 110, align: 'right' },
-    { title: '产品单价', dataIndex: 'productUnitPrice', width: 100, align: 'right' },
-    { title: '单价合计', dataIndex: 'unitPriceTotal', width: 100, align: 'right' },
-    { title: '样品交期', dataIndex: 'sampleLeadTime', width: 100 },
+    { title: '阶段', dataIndex: 'stage', width: 76, render: (s: string) => <Tag>{s === 'before' ? '议价前' : '议价后'}</Tag> },
+    {
+      title: '产品明细',
+      width: 190,
+      render: (_, q) =>
+        q.products?.length ? (
+          <Space direction="vertical" size={0}>
+            {q.products.map((p, i) => (
+              <span key={i} style={{ fontSize: 12 }}>
+                {p.name}：模 {p.moldPrice ?? '—'} / 单 {p.unitPrice ?? '—'}
+              </span>
+            ))}
+          </Space>
+        ) : (
+          q.moldItems || '—'
+        ),
+    },
+    {
+      title: '模具含税(万)',
+      dataIndex: 'moldPriceTaxed',
+      width: 100,
+      align: 'right',
+      render: (v: number | null) => (v == null ? '—' : <span style={{ color: v === minMold ? '#0e9f6e' : undefined, fontWeight: v === minMold ? 700 : 400 }}>{v}</span>),
+    },
+    { title: '模具价差', width: 84, align: 'right', render: (_, q) => fluctuation(q.moldPriceTaxed, minMold) },
+    {
+      title: '单价合计',
+      dataIndex: 'unitPriceTotal',
+      width: 90,
+      align: 'right',
+      render: (v: number | null) => (v == null ? '—' : <span style={{ color: v === minUnit ? '#0e9f6e' : undefined, fontWeight: v === minUnit ? 700 : 400 }}>{v}</span>),
+    },
+    { title: '单价价差', width: 84, align: 'right', render: (_, q) => fluctuation(q.unitPriceTotal, minUnit) },
+    { title: '级距单价', dataIndex: 'tierUnitPrice', width: 84, align: 'right', render: (v) => v ?? '—' },
+    {
+      title: '背调风险',
+      width: 88,
+      align: 'center',
+      render: (_, q) => {
+        const r = bgByName(q.supplierName);
+        return r ? <Tag color={r.color}>{r.text}</Tag> : <Tag>—</Tag>;
+      },
+    },
+    { title: '样品交期', dataIndex: 'sampleLeadTime', width: 90 },
     { title: '交货周期', dataIndex: 'deliveryCycle', width: 100 },
     { title: '账期', dataIndex: 'paymentTerms', width: 150 },
     { title: '模具款条件', dataIndex: 'moldPaymentTerms', width: 180 },
@@ -228,15 +309,35 @@ export function SourcingPage() {
           {!detail ? (
             <Empty description="请从左侧选择或新增案件" />
           ) : (
-            <Table<SourcingQuote>
-              rowKey="id"
-              columns={quoteColumns}
-              dataSource={detail.quotes}
-              size="small"
-              pagination={false}
-              scroll={{ x: 1800 }}
-              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无报价，点「新增报价」加入候选供应商" /> }}
-            />
+            <>
+              {negotiationPairs.length > 0 && (
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid #f0f0f0', background: '#f8fafc' }}>
+                  <Space wrap>
+                    <Typography.Text strong>议价前后：</Typography.Text>
+                    {negotiationPairs.map((p) => {
+                      const bf = p.before.unitPriceTotal;
+                      const af = p.after.unitPriceTotal;
+                      const imp = bf != null && af != null && bf > 0 ? ((bf - af) / bf) * 100 : null;
+                      return (
+                        <Tag key={p.name} color="blue">
+                          {p.name}：单价 {bf ?? '—'} → {af ?? '—'}
+                          {imp != null && imp > 0 && <b style={{ color: '#0e9f6e' }}> 降{imp.toFixed(1)}%</b>}
+                        </Tag>
+                      );
+                    })}
+                  </Space>
+                </div>
+              )}
+              <Table<SourcingQuote>
+                rowKey="id"
+                columns={quoteColumns}
+                dataSource={detail.quotes}
+                size="small"
+                pagination={false}
+                scroll={{ x: 1900 }}
+                locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无报价，点「新增报价」加入候选供应商" /> }}
+              />
+            </>
           )}
         </Card>
       </div>
@@ -286,10 +387,36 @@ export function SourcingPage() {
               <Select options={[{ value: 'before', label: '议价前' }, { value: 'after', label: '议价后' }]} />
             </Form.Item>
           </Space>
+          <Form.List name="products">
+            {(fields, { add, remove }) => (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Typography.Text strong>产品明细（脚架/框架、跳线…）</Typography.Text>
+                  <Button size="small" icon={<PlusOutlined />} onClick={() => add({ name: '', moldPrice: null, unitPrice: null })}>
+                    加产品
+                  </Button>
+                </div>
+                {fields.map(({ key, name, ...rest }) => (
+                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                    <Form.Item {...rest} name={[name, 'name']} rules={[{ required: true, message: '产品名' }]} style={{ marginBottom: 0 }}>
+                      <Input placeholder="产品名(脚架/跳线)" style={{ width: 160 }} />
+                    </Form.Item>
+                    <Form.Item {...rest} name={[name, 'moldPrice']} style={{ marginBottom: 0 }}>
+                      <InputNumber placeholder="模具费" style={{ width: 110 }} />
+                    </Form.Item>
+                    <Form.Item {...rest} name={[name, 'unitPrice']} style={{ marginBottom: 0 }}>
+                      <InputNumber placeholder="未税单价" style={{ width: 110 }} />
+                    </Form.Item>
+                    <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#e02424' }} />
+                  </Space>
+                ))}
+              </div>
+            )}
+          </Form.List>
           <Space style={{ width: '100%' }} size={12} wrap>
-            <Form.Item name="moldPriceTaxed" label="模具含税(万元)"><InputNumber style={{ width: 150 }} /></Form.Item>
-            <Form.Item name="productUnitPrice" label="产品未税单价"><InputNumber style={{ width: 150 }} /></Form.Item>
+            <Form.Item name="moldPriceTaxed" label="模具含税总(万元)"><InputNumber style={{ width: 150 }} /></Form.Item>
             <Form.Item name="unitPriceTotal" label="单价合计"><InputNumber style={{ width: 150 }} /></Form.Item>
+            <Form.Item name="tierUnitPrice" label="级距单价"><InputNumber style={{ width: 130 }} /></Form.Item>
           </Space>
           <Space style={{ width: '100%' }} size={12} wrap>
             <Form.Item name="sampleLeadTime" label="样品交期"><Input style={{ width: 150 }} /></Form.Item>

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../db/prisma';
 import { notFound } from '../../lib/httpError';
 
@@ -36,13 +37,21 @@ export const deleteEvent = async (id: number) => {
   return { ok: true };
 };
 
+export interface QuoteProduct {
+  name: string;
+  moldPrice?: number | null;
+  unitPrice?: number | null;
+}
+
 export type QuoteInput = {
   supplierName: string;
   stage?: string;
   moldItems?: string | null;
+  products?: QuoteProduct[] | null;
   moldPriceTaxed?: number | null;
   productUnitPrice?: number | null;
   unitPriceTotal?: number | null;
+  tierUnitPrice?: number | null;
   sampleLeadTime?: string | null;
   deliveryCycle?: string | null;
   paymentTerms?: string | null;
@@ -52,15 +61,26 @@ export type QuoteInput = {
   evaluation?: string | null;
 };
 
+/** 將 products（Json 欄位）轉為 prisma 可接受的值：null → JsonNull，undefined → 不變更 */
+const jsonOf = (
+  v: QuoteProduct[] | null | undefined,
+): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined =>
+  v === undefined ? undefined : v === null ? Prisma.JsonNull : (v as unknown as Prisma.InputJsonValue);
+
 export const addQuote = async (eventId: number, data: QuoteInput) => {
   await getEvent(eventId);
-  return prisma.sourcingQuote.create({ data: { eventId, ...data } });
+  return prisma.sourcingQuote.create({
+    data: { eventId, ...data, products: jsonOf(data.products) } as Prisma.SourcingQuoteUncheckedCreateInput,
+  });
 };
 
 export const updateQuote = async (id: number, data: Partial<QuoteInput>) => {
   const q = await prisma.sourcingQuote.findUnique({ where: { id } });
   if (!q) throw notFound('找不到该报价');
-  return prisma.sourcingQuote.update({ where: { id }, data });
+  return prisma.sourcingQuote.update({
+    where: { id },
+    data: { ...data, products: jsonOf(data.products) } as Prisma.SourcingQuoteUncheckedUpdateInput,
+  });
 };
 
 export const deleteQuote = async (id: number) => {

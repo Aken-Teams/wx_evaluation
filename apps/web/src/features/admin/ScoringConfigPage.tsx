@@ -1,9 +1,10 @@
-import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SaveOutlined, SlidersOutlined } from '@ant-design/icons';
 import type { ScoringConfig } from '@wx/scoring';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Alert, Button, Card, Col, InputNumber, Row, Space, Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { scoringConfigApi } from '../../api';
+import { PageHeader } from '../../components/PageHeader';
 import { apiErrorMessage } from '../../lib/api';
 
 const Num = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
@@ -57,19 +58,21 @@ export function ScoringConfigPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          评分设定
-        </Typography.Title>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => resetMut.mutate()} loading={resetMut.isPending}>
-            还原预设
-          </Button>
-          <Button type="primary" icon={<SaveOutlined />} onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
-            储存
-          </Button>
-        </Space>
-      </Space>
+      <PageHeader
+        icon={<SlidersOutlined />}
+        title="评分设定"
+        subtitle="调整各维度权重与等级门槛，套用于后续计算"
+        extra={
+          <>
+            <Button icon={<ReloadOutlined />} onClick={() => resetMut.mutate()} loading={resetMut.isPending}>
+              还原预设
+            </Button>
+            <Button type="primary" icon={<SaveOutlined />} onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
+              储存
+            </Button>
+          </>
+        }
+      />
 
       <Alert
         type="info"

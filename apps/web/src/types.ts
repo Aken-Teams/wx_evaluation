@@ -133,6 +133,44 @@ export interface OsatRow {
   remarks: string | null;
 }
 
+export interface QuarterlyHistoryPoint {
+  year: number;
+  quarter: string;
+  period: string;
+  assessmentScore: number | null;
+  grade: Grade | null;
+  quality: number | null;
+  purchase: number | null;
+  service: number | null;
+  noTransaction: boolean;
+}
+
+export interface AnnualHistoryPoint {
+  year: number;
+  monthlyAssessmentAverage: number | null;
+  auditComponent: number;
+  annualScore: number | null;
+  grade: Grade | null;
+}
+
+export interface SupplierProfile {
+  vendor: Supplier;
+  isAU: boolean;
+  current: { period: string; score: number | null; grade: Grade | null; rank: number | null; totalRanked: number } | null;
+  quarterlyHistory: QuarterlyHistoryPoint[];
+  annualHistory: AnnualHistoryPoint[];
+  backgroundChecks: Array<{
+    id: number;
+    year: number;
+    latePaymentCount: number;
+    customerComplaintCount: number;
+    qualityAbnormal8D: number;
+    cooperationScore: number | null;
+    notes: string | null;
+  }>;
+  sourcingParticipation: Array<{ eventId: number; eventTitle: string; stage: string; isBest: boolean }>;
+}
+
 export interface BackgroundRow {
   vendorId: number;
   vendorName: string;
@@ -154,15 +192,23 @@ export interface SourcingEvent {
   _count?: { quotes: number };
 }
 
+export interface QuoteProduct {
+  name: string;
+  moldPrice?: number | null;
+  unitPrice?: number | null;
+}
+
 export interface SourcingQuote {
   id: number;
   eventId: number;
   supplierName: string;
   stage: string;
   moldItems: string | null;
+  products: QuoteProduct[] | null;
   moldPriceTaxed: number | null;
   productUnitPrice: number | null;
   unitPriceTotal: number | null;
+  tierUnitPrice: number | null;
   sampleLeadTime: string | null;
   deliveryCycle: string | null;
   paymentTerms: string | null;

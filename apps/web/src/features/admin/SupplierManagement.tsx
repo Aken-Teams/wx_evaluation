@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined, ShopOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App as AntApp,
@@ -8,26 +8,34 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Table,
   Tag,
-  Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { suppliersApi, type SupplierInput } from '../../api';
+import { PageHeader } from '../../components/PageHeader';
 import { apiErrorMessage } from '../../lib/api';
 import type { Supplier } from '../../types';
 
 export function SupplierManagement() {
   const { message } = AntApp.useApp();
+  const nav = useNavigate();
   const qc = useQueryClient();
   const [form] = Form.useForm<SupplierInput>();
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
 
   const listQuery = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list });
+  const categories = useMemo(
+    () => Array.from(new Set((listQuery.data ?? []).map((s) => s.materialCategory).filter(Boolean))) as string[],
+    [listQuery.data],
+  );
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['suppliers'] });
@@ -66,19 +74,28 @@ export function SupplierManagement() {
   };
 
   const data = useMemo(() => {
-    const all = listQuery.data ?? [];
-    if (!keyword.trim()) return all;
-    const k = keyword.trim().toLowerCase();
-    return all.filter(
-      (s) =>
-        s.name.toLowerCase().includes(k) ||
-        (s.supplierCode ?? '').toLowerCase().includes(k) ||
-        (s.materialCategory ?? '').toLowerCase().includes(k),
-    );
-  }, [listQuery.data, keyword]);
+    let all = listQuery.data ?? [];
+    if (categoryFilter) all = all.filter((s) => s.materialCategory === categoryFilter);
+    if (keyword.trim()) {
+      const k = keyword.trim().toLowerCase();
+      all = all.filter(
+        (s) =>
+          s.name.toLowerCase().includes(k) ||
+          (s.supplierCode ?? '').toLowerCase().includes(k) ||
+          (s.materialCategory ?? '').toLowerCase().includes(k),
+      );
+    }
+    return all;
+  }, [listQuery.data, keyword, categoryFilter]);
 
   const columns: ColumnsType<Supplier> = [
-    { title: '供应商名称', dataIndex: 'name', fixed: 'left', width: 240 },
+    {
+      title: '供应商名称',
+      dataIndex: 'name',
+      fixed: 'left',
+      width: 240,
+      render: (n: string, r) => <a onClick={() => nav(`/suppliers/${r.id}`)}>{n}</a>,
+    },
     { title: '供应商代码', dataIndex: 'supplierCode', width: 120 },
     { title: '物料类别', dataIndex: 'materialCategory', width: 160 },
     { title: '地区', dataIndex: 'region', width: 100 },
@@ -107,22 +124,26 @@ export function SupplierManagement() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          供应商管理
-        </Typography.Title>
-        <Space>
-          <Input.Search
-            placeholder="搜索名称 / 代码 / 物料"
-            allowClear
-            style={{ width: 240 }}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
-            新增供应商
-          </Button>
-        </Space>
-      </Space>
+      <PageHeader
+        icon={<ShopOutlined />}
+        title="供应商管理"
+        subtitle={`共 ${listQuery.data?.length ?? 0} 家供应商 · 点名称可进档案`}
+        extra={
+          <>
+            <Select
+              allowClear
+              placeholder="物料类别"
+              style={{ width: 170 }}
+              options={categories.map((c) => ({ value: c, label: c }))}
+              onChange={setCategoryFilter}
+            />
+            <Input.Search placeholder="搜索名称 / 代码" allowClear style={{ width: 200 }} onChange={(e) => setKeyword(e.target.value)} />
+            <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
+              新增供应商
+            </Button>
+          </>
+        }
+      />
 
       <Card variant="borderless" styles={{ body: { padding: 0 } }}>
         <Table<Supplier>

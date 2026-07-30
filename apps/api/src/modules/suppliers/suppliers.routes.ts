@@ -9,6 +9,7 @@ suppliersRouter.use(authenticate);
 
 // 檢視：所有登入者
 suppliersRouter.get('/', ctrl.list);
+suppliersRouter.get('/:id/profile', validate(ctrl.idParamSchema, 'params'), ctrl.getProfile);
 suppliersRouter.get('/:id', validate(ctrl.idParamSchema, 'params'), ctrl.getOne);
 
 // 維護：管理員 / 品質年度編輯

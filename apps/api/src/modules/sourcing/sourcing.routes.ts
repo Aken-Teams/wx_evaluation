@@ -19,9 +19,20 @@ const quoteSchema = z.object({
   supplierName: z.string().min(1, '请输入供方名称'),
   stage: z.enum(['before', 'after']).optional(),
   moldItems: z.string().nullable().optional(),
+  products: z
+    .array(
+      z.object({
+        name: z.string(),
+        moldPrice: z.number().nullable().optional(),
+        unitPrice: z.number().nullable().optional(),
+      }),
+    )
+    .nullable()
+    .optional(),
   moldPriceTaxed: z.number().nullable().optional(),
   productUnitPrice: z.number().nullable().optional(),
   unitPriceTotal: z.number().nullable().optional(),
+  tierUnitPrice: z.number().nullable().optional(),
   sampleLeadTime: z.string().nullable().optional(),
   deliveryCycle: z.string().nullable().optional(),
   paymentTerms: z.string().nullable().optional(),
