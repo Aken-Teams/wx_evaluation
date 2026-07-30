@@ -4,10 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./db-tunnel.ps1 start",
     "dev": "concurrently -k -n API,WEB -c cyan,green \"npm run dev:api\" \"npm run dev:web\"",
     "dev:api": "npm --prefix apps/api run dev",
     "dev:web": "npm --prefix apps/web run dev",
+    "prestart": "powershell -NoProfile -ExecutionPolicy Bypass -File ./db-tunnel.ps1 start",
+    "start": "npm --prefix apps/api start",
     "dev:legacy": "concurrently -k -n API,WEB -c cyan,green \"npm --prefix server run dev\" \"vite\"",
     "tunnel": "powershell -NoProfile -ExecutionPolicy Bypass -File ./db-tunnel.ps1 start",
     "tunnel:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./db-tunnel.ps1 stop",

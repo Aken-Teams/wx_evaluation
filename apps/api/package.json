@@ -6,7 +6,7 @@
   "description": "供應商評比系統 — 後端 API（分層架構）",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
+    "start": "cross-env NODE_ENV=production tsx src/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prisma:generate": "prisma generate",
@@ -30,6 +30,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20.17.0",
     "@types/supertest": "^6.0.2",
+    "cross-env": "^7.0.3",
     "prisma": "^5.22.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
