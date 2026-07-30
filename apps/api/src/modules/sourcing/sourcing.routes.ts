@@ -66,3 +66,6 @@ sourcingRouter.post('/events/:id/quotes', validate(idParam, 'params'), editor, v
 sourcingRouter.put('/quotes/:id', validate(idParam, 'params'), editor, h((req) => service.updateQuote(Number(req.params.id), req.body)));
 sourcingRouter.delete('/quotes/:id', validate(idParam, 'params'), editor, h((req) => service.deleteQuote(Number(req.params.id))));
 sourcingRouter.post('/quotes/:id/best', validate(idParam, 'params'), editor, h((req) => service.markBest(Number(req.params.id))));
+
+// AI 建议最优一家
+sourcingRouter.post('/events/:id/recommend', validate(idParam, 'params'), h((req) => service.recommend(Number(req.params.id))));

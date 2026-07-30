@@ -222,3 +222,13 @@ export interface SourcingQuote {
 export interface SourcingEventDetail extends SourcingEvent {
   quotes: SourcingQuote[];
 }
+
+export interface SourcingRecommendation {
+  ruleBased: {
+    recommendedQuoteId: number;
+    recommendedName: string;
+    reasons: string[];
+    ranking: Array<{ quoteId: number; supplierName: string; stage: string; price: number | null; bgRisk: number | null; composite: number }>;
+  } | null;
+  ai: { configured: boolean; reply: string };
+}

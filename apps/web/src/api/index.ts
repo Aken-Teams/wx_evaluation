@@ -12,6 +12,7 @@ import type {
   SourcingEvent,
   SourcingEventDetail,
   SourcingQuote,
+  SourcingRecommendation,
   Supplier,
   SupplierProfile,
   SummaryResponse,
@@ -130,6 +131,7 @@ export const sourcingApi = {
     api.put<SourcingQuote>(`/sourcing/quotes/${id}`, data).then((r) => r.data),
   deleteQuote: (id: number) => api.delete(`/sourcing/quotes/${id}`).then((r) => r.data),
   markBest: (id: number) => api.post(`/sourcing/quotes/${id}/best`).then((r) => r.data),
+  recommend: (id: number) => api.post<SourcingRecommendation>(`/sourcing/events/${id}/recommend`).then((r) => r.data),
 };
 
 // ── Users ──

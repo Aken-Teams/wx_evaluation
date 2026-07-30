@@ -38,6 +38,36 @@ export interface ChatMessage {
   content: string;
 }
 
+/** 通用完成：給定 system + user 提示，回傳 AI 回覆（未設定則 configured=false）。 */
+export const complete = async (system: string, user: string): Promise<{ configured: boolean; reply: string }> => {
+  if (!isConfigured()) return { configured: false, reply: '' };
+  const payload = {
+    model: env.OLLAMA_MODEL || 'llama3.2',
+    stream: false,
+    max_tokens: 800,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+  };
+  try {
+    const resp = await fetch(`${env.OLLAMA_API_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(env.OLLAMA_API_KEY ? { Authorization: `Bearer ${env.OLLAMA_API_KEY}` } : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!resp.ok) return { configured: true, reply: `AI 服务返回错误（HTTP ${resp.status}）。` };
+    const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }>; message?: { content?: string } };
+    return { configured: true, reply: data.choices?.[0]?.message?.content || data.message?.content || '' };
+  } catch (e) {
+    return { configured: true, reply: `AI 服务暂时无法连接：${e instanceof Error ? e.message : '未知错误'}` };
+  }
+};
+
 export const chat = async (messages: ChatMessage[]): Promise<{ configured: boolean; reply: string }> => {
   if (!isConfigured()) {
     return {

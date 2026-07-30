@@ -1,6 +1,7 @@
-import { DeleteOutlined, EditOutlined, MinusCircleOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, MinusCircleOutlined, PlusOutlined, RobotOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Alert,
   App as AntApp,
   Button,
   Card,
@@ -11,6 +12,7 @@ import {
   List,
   Modal,
   Popconfirm,
+  Progress,
   Select,
   Space,
   Table,
@@ -21,7 +23,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { backgroundApi, sourcingApi, suppliersApi, type QuoteInput } from '../../api';
 import { apiErrorMessage } from '../../lib/api';
-import type { BackgroundRow, SourcingQuote } from '../../types';
+import type { BackgroundRow, SourcingQuote, SourcingRecommendation } from '../../types';
 
 const CUR_YEAR = 2026;
 const bgRiskLevel = (b: BackgroundRow | undefined) => {
@@ -128,6 +130,17 @@ export function SourcingPage() {
     onSuccess: () => {
       message.success('已标记最优供应商');
       refetchAll();
+    },
+    onError: (e) => message.error(apiErrorMessage(e)),
+  });
+
+  const [recOpen, setRecOpen] = useState(false);
+  const [rec, setRec] = useState<SourcingRecommendation | null>(null);
+  const recommend = useMutation({
+    mutationFn: () => sourcingApi.recommend(selected!),
+    onSuccess: (r) => {
+      setRec(r);
+      setRecOpen(true);
     },
     onError: (e) => message.error(apiErrorMessage(e)),
   });
@@ -294,6 +307,16 @@ export function SourcingPage() {
           extra={
             detail && (
               <Space>
+                <Button
+                  type="primary"
+                  ghost
+                  icon={<ThunderboltOutlined />}
+                  loading={recommend.isPending}
+                  disabled={!detail.quotes.length}
+                  onClick={() => recommend.mutate()}
+                >
+                  建议最优
+                </Button>
                 <Button icon={<PlusOutlined />} onClick={openAddQuote}>
                   新增报价
                 </Button>
@@ -431,6 +454,54 @@ export function SourcingPage() {
           <Form.Item name="backgroundInfo" label="背调信息"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="evaluation" label="综合评估"><Input.TextArea rows={2} /></Form.Item>
         </Form>
+      </Modal>
+
+      {/* AI 建议最优一家 */}
+      <Modal
+        open={recOpen}
+        title={<Space><TrophyOutlined style={{ color: '#e3a008' }} /> 建议最优一家</Space>}
+        onCancel={() => setRecOpen(false)}
+        footer={null}
+        width={560}
+      >
+        {rec?.ruleBased ? (
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Alert
+              type="success"
+              showIcon
+              message={<span>推荐：<b>{rec.ruleBased.recommendedName}</b></span>}
+              description={<Space wrap>{rec.ruleBased.reasons.map((r, i) => <Tag key={i} color="green">{r}</Tag>)}</Space>}
+            />
+            <div>
+              <Typography.Text strong>综合评分排名（价格 60% + 背调 40%）</Typography.Text>
+              {rec.ruleBased.ranking.map((r, i) => (
+                <div key={r.quoteId} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0' }}>
+                  <span style={{ width: 130, fontSize: 13 }}>{i + 1}. {r.supplierName}</span>
+                  <Progress percent={r.composite} size="small" style={{ flex: 1 }} strokeColor={i === 0 ? '#0e9f6e' : '#1a56db'} />
+                  {r.bgRisk != null && <Tag color={r.bgRisk === 0 ? 'green' : r.bgRisk <= 2 ? 'gold' : 'red'}>背调{r.bgRisk}</Tag>}
+                </div>
+              ))}
+            </div>
+            {rec.ai.configured && rec.ai.reply ? (
+              <Alert type="info" showIcon icon={<RobotOutlined />} message="AI 说明" description={rec.ai.reply} />
+            ) : (
+              <Typography.Text type="secondary">（AI 未配置：以上为规则式综合评分建议。设定 Ollama 后将附上 AI 文字说明。）</Typography.Text>
+            )}
+            <Button
+              type="primary"
+              icon={<StarFilled />}
+              block
+              onClick={() => {
+                markBest.mutate(rec.ruleBased!.recommendedQuoteId);
+                setRecOpen(false);
+              }}
+            >
+              采纳为最优一家
+            </Button>
+          </Space>
+        ) : (
+          <Empty description="无报价可分析" />
+        )}
       </Modal>
     </Space>
   );
