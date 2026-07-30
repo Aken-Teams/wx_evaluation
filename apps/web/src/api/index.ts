@@ -141,8 +141,8 @@ export const usersApi = {
     api.post<UserRow>('/users', data).then((r) => r.data),
   update: (id: number, data: { role?: string; enabled?: boolean }) =>
     api.put<UserRow>(`/users/${id}`, data).then((r) => r.data),
-  resetPassword: (id: number) =>
-    api.post<{ tempPassword: string }>(`/users/${id}/reset-password`).then((r) => r.data),
+  resetPassword: (id: number, password?: string) =>
+    api.post<{ tempPassword: string | null }>(`/users/${id}/reset-password`, password ? { password } : {}).then((r) => r.data),
   changePassword: (oldPassword: string, newPassword: string) =>
     api.post('/users/change-password', { oldPassword, newPassword }).then((r) => r.data),
 };

@@ -7,6 +7,7 @@ import {
   FormOutlined,
   HomeOutlined,
   IdcardOutlined,
+  KeyOutlined,
   LogoutOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
@@ -15,10 +16,11 @@ import {
 } from '@ant-design/icons';
 import { Avatar, Dropdown, Layout, Menu, Typography } from 'antd';
 import type { MenuProps } from 'antd';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { AiAssistant } from './AiAssistant';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const { Sider, Header, Content } = Layout;
@@ -36,6 +38,7 @@ export function AppLayout() {
   const loc = useLocation();
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'quality_yearly_editor';
+  const [pwOpen, setPwOpen] = useState(false);
 
   const menuItems: MenuProps['items'] = useMemo(
     () => [
@@ -86,7 +89,11 @@ export function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider theme="dark" width={220} breakpoint="lg" collapsedWidth={0}>
+      <Sider
+        theme="dark"
+        width={220}
+        style={{ position: 'fixed', insetInlineStart: 0, top: 0, bottom: 0, height: '100vh', overflow: 'auto', zIndex: 11 }}
+      >
         <div
           style={{
             height: 56,
@@ -111,9 +118,12 @@ export function AppLayout() {
           }}
         />
       </Sider>
-      <Layout>
+      <Layout style={{ marginInlineStart: 220 }}>
         <Header
           style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
@@ -123,7 +133,11 @@ export function AppLayout() {
         >
           <Dropdown
             menu={{
-              items: [{ key: 'logout', icon: <LogoutOutlined />, label: '登出', onClick: logout }],
+              items: [
+                { key: 'changepw', icon: <KeyOutlined />, label: '修改密码', onClick: () => setPwOpen(true) },
+                { type: 'divider' },
+                { key: 'logout', icon: <LogoutOutlined />, label: '登出', onClick: logout },
+              ],
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
@@ -146,6 +160,7 @@ export function AppLayout() {
         </Content>
       </Layout>
       <AiAssistant />
+      <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
     </Layout>
   );
 }

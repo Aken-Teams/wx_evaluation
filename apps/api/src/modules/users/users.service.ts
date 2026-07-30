@@ -38,13 +38,21 @@ export const updateUser = async (id: number, data: { role?: Role; enabled?: bool
   return prisma.user.update({ where: { id }, data, select: publicFields });
 };
 
-/** 重置密碼：產生密碼學安全的臨時密碼並回傳（取代舊系統 Math.random 弱密碼） */
-export const resetPassword = async (id: number) => {
+/**
+ * 管理員重置/設定密碼：
+ * - 提供 newPassword → 設為指定密碼（管理員特權，不需舊密碼）
+ * - 未提供 → 產生密碼學安全的臨時密碼並回傳
+ */
+export const resetPassword = async (id: number, newPassword?: string) => {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw notFound('找不到该账号');
+  if (newPassword) {
+    await prisma.user.update({ where: { id }, data: { password: await bcrypt.hash(newPassword, 10) } });
+    return { tempPassword: null as string | null };
+  }
   const temp = (await import('node:crypto')).randomBytes(6).toString('base64url');
   await prisma.user.update({ where: { id }, data: { password: await bcrypt.hash(temp, 10) } });
-  return { tempPassword: temp };
+  return { tempPassword: temp as string | null };
 };
 
 export const changePassword = async (userId: number, oldPassword: string, newPassword: string) => {

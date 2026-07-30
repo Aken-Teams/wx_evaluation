@@ -29,6 +29,9 @@ export function UserManagement() {
   const qc = useQueryClient();
   const [form] = Form.useForm();
   const [open, setOpen] = useState(false);
+  const [resetForm] = Form.useForm<{ password?: string }>();
+  const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const listQuery = useQuery({ queryKey: ['users'], queryFn: usersApi.list });
   const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] });
@@ -51,19 +54,25 @@ export function UserManagement() {
   });
 
   const resetMut = useMutation({
-    mutationFn: (id: number) => usersApi.resetPassword(id),
-    onSuccess: (r) =>
-      modal.success({
-        title: '密码已重置',
-        content: (
-          <div>
-            临时密码（请复制交给使用者，并要求尽快修改）：
-            <Typography.Paragraph copyable strong style={{ fontSize: 16, marginTop: 8 }}>
-              {r.tempPassword}
-            </Typography.Paragraph>
-          </div>
-        ),
-      }),
+    mutationFn: (v: { id: number; password?: string }) => usersApi.resetPassword(v.id, v.password),
+    onSuccess: (r) => {
+      setResetOpen(false);
+      if (r.tempPassword) {
+        modal.success({
+          title: '临时密码已生成',
+          content: (
+            <div>
+              请复制交给使用者，并要求尽快自行修改：
+              <Typography.Paragraph copyable strong style={{ fontSize: 16, marginTop: 8 }}>
+                {r.tempPassword}
+              </Typography.Paragraph>
+            </div>
+          ),
+        });
+      } else {
+        message.success('密码已设定');
+      }
+    },
     onError: (e) => message.error(apiErrorMessage(e)),
   });
 
@@ -106,11 +115,17 @@ export function UserManagement() {
       title: '操作',
       width: 140,
       render: (_, u) => (
-        <Popconfirm title={`重置 ${u.username} 的密码？`} onConfirm={() => resetMut.mutate(u.id)} okText="重置" cancelText="取消">
-          <Button size="small" icon={<KeyOutlined />}>
-            重置密码
-          </Button>
-        </Popconfirm>
+        <Button
+          size="small"
+          icon={<KeyOutlined />}
+          onClick={() => {
+            setResetTarget(u);
+            resetForm.resetFields();
+            setResetOpen(true);
+          }}
+        >
+          重置密码
+        </Button>
       ),
     },
   ];
@@ -167,6 +182,33 @@ export function UserManagement() {
             <Select options={ROLE_OPTIONS} placeholder="选择角色" />
           </Form.Item>
           <Tag color="blue">提示：建立后可在列表切换角色 / 启用状态</Tag>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={resetOpen}
+        title={`重置「${resetTarget?.username ?? ''}」的密码`}
+        onCancel={() => setResetOpen(false)}
+        onOk={() => resetForm.submit()}
+        confirmLoading={resetMut.isPending}
+        okText="确定"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <Form
+          form={resetForm}
+          layout="vertical"
+          onFinish={(v) => resetMut.mutate({ id: resetTarget!.id, password: v.password || undefined })}
+          style={{ marginTop: 12 }}
+        >
+          <Form.Item
+            name="password"
+            label="新密码"
+            rules={[{ validator: (_, v) => (!v || v.length >= 6 ? Promise.resolve() : Promise.reject(new Error('至少 6 码'))) }]}
+            extra="留空则自动生成临时密码（需交给使用者并要求尽快自行修改）"
+          >
+            <Input.Password placeholder="输入新密码，或留空自动生成" autoComplete="new-password" />
+          </Form.Item>
         </Form>
       </Modal>
     </Space>

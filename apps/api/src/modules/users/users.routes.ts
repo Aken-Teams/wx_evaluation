@@ -15,4 +15,4 @@ const admin = requireRole('admin');
 usersRouter.get('/', admin, ctrl.list);
 usersRouter.post('/', admin, validate(ctrl.createSchema), ctrl.create);
 usersRouter.put('/:id', admin, validate(ctrl.idParamSchema, 'params'), validate(ctrl.updateSchema), ctrl.update);
-usersRouter.post('/:id/reset-password', admin, validate(ctrl.idParamSchema, 'params'), ctrl.reset);
+usersRouter.post('/:id/reset-password', admin, validate(ctrl.idParamSchema, 'params'), validate(ctrl.resetSchema), ctrl.reset);

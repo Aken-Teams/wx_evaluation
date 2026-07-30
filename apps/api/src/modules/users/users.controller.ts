@@ -21,6 +21,10 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(6, '新密码至少 6 码'),
 });
 
+export const resetSchema = z.object({
+  password: z.string().min(6, '密码至少 6 码').optional(),
+});
+
 export const list: RequestHandler = async (_req, res, next) => {
   try {
     res.json(await service.listUsers());
@@ -49,7 +53,8 @@ export const update: RequestHandler = async (req, res, next) => {
 export const reset: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params as unknown as z.infer<typeof idParamSchema>;
-    res.json(await service.resetPassword(id));
+    const { password } = req.body as z.infer<typeof resetSchema>;
+    res.json(await service.resetPassword(id, password));
   } catch (e) {
     next(e);
   }
