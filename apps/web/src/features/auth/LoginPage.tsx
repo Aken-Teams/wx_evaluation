@@ -1,9 +1,15 @@
-import { LockOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons';
-import { Button, Card, Form, Input, Typography, message } from 'antd';
+import { CrownOutlined, EditOutlined, EyeOutlined, LockOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, Card, Divider, Form, Input, Space, Typography, message } from 'antd';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { apiErrorMessage } from '../../lib/api';
+
+const QUICK = [
+  { label: '管理者', username: 'admin', password: 'admin123', icon: <CrownOutlined />, color: '#1a56db' },
+  { label: '评分者', username: 'evaluator', password: 'eval123', icon: <EditOutlined />, color: '#0e9f6e' },
+  { label: '检视者', username: 'P170014', password: 'viewer123', icon: <EyeOutlined />, color: '#e3a008' },
+];
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -12,10 +18,10 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const from = (loc.state as { from?: string })?.from ?? '/home';
 
-  const onFinish = async (v: { username: string; password: string }) => {
+  const doLogin = async (username: string, password: string) => {
     setLoading(true);
     try {
-      await login(v.username, v.password);
+      await login(username, password);
       nav(from, { replace: true });
     } catch (e) {
       message.error(apiErrorMessage(e, '登入失败'));
@@ -42,7 +48,7 @@ export function LoginPage() {
           </Typography.Title>
           <Typography.Text type="secondary">Supplier Assessment Platform</Typography.Text>
         </div>
-        <Form layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
+        <Form layout="vertical" onFinish={(v) => doLogin(v.username, v.password)} requiredMark={false} size="large">
           <Form.Item name="username" rules={[{ required: true, message: '请输入账号' }]}>
             <Input prefix={<UserOutlined />} placeholder="账号" autoComplete="username" />
           </Form.Item>
@@ -53,6 +59,23 @@ export function LoginPage() {
             登 入
           </Button>
         </Form>
+
+        <Divider plain style={{ margin: '20px 0 12px', color: '#94a3b8', fontSize: 12 }}>
+          快速登入（示范帐号）
+        </Divider>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          {QUICK.map((q) => (
+            <Button
+              key={q.username}
+              icon={q.icon}
+              style={{ flex: 1, color: q.color, borderColor: q.color }}
+              disabled={loading}
+              onClick={() => doLogin(q.username, q.password)}
+            >
+              {q.label}
+            </Button>
+          ))}
+        </Space>
       </Card>
     </div>
   );

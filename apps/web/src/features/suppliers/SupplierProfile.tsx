@@ -189,6 +189,38 @@ export function SupplierProfile() {
         </Col>
       </Row>
 
+      {/* 历年填报明细（唯读） */}
+      <Card title="历年填报明细（唯读）" variant="borderless" styles={{ body: { padding: 0 } }}>
+        {quarterlyHistory.length ? (
+          <Table
+            rowKey="period"
+            size="small"
+            pagination={false}
+            dataSource={quarterlyHistory}
+            scroll={{ x: 1100 }}
+            columns={[
+              { title: '期别', dataIndex: 'period', fixed: 'left', width: 100 },
+              { title: '检验批数', align: 'center', width: 84, render: (_, r) => r.raw.receivedBatches },
+              { title: '退货批数', align: 'center', width: 84, render: (_, r) => r.raw.returnedBatches },
+              { title: '外部客诉', align: 'center', width: 84, render: (_, r) => r.raw.externalCAR },
+              { title: '产线CAR', align: 'center', width: 84, render: (_, r) => r.raw.arr },
+              { title: '延迟回复', align: 'center', width: 84, render: (_, r) => r.raw.untimelyResponseCCR },
+              { title: '达交率%', align: 'center', width: 84, render: (_, r) => r.raw.deliveryRate ?? '—' },
+              { title: '停线', align: 'center', width: 64, render: (_, r) => r.raw.productionLineStop },
+              { title: '特批', align: 'center', width: 64, render: (_, r) => r.raw.specialApproval },
+              { title: '品质服务', align: 'center', width: 84, render: (_, r) => r.raw.serviceQuality },
+              { title: '采购服务', align: 'center', width: 84, render: (_, r) => r.raw.servicePurchase },
+              { title: '综合', align: 'center', width: 72, fixed: 'right', render: (_, r) => <b>{r.assessmentScore ?? '—'}</b> },
+              { title: '等级', align: 'center', width: 64, fixed: 'right', render: (_, r) => <GradeTag grade={r.grade} /> },
+            ]}
+          />
+        ) : (
+          <div style={{ padding: 24 }}>
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无填报纪录" />
+          </div>
+        )}
+      </Card>
+
       {/* 参与的比价 */}
       <Card title="参与的比价案件" variant="borderless">
         {sourcingParticipation.length ? (

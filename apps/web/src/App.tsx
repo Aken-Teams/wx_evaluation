@@ -14,6 +14,8 @@ import { SupplierDirectory } from './features/suppliers/SupplierDirectory';
 import { SupplierProfile } from './features/suppliers/SupplierProfile';
 
 const ADMIN = ['admin', 'quality_yearly_editor'];
+// 评比人员（可录入）：viewer 看报告者除外
+const WORKERS = ['admin', 'quality_yearly_editor', 'engineer', 'purchase_editor'];
 
 export default function App() {
   return (
@@ -33,15 +35,11 @@ export default function App() {
         <Route path="/suppliers" element={<SupplierDirectory />} />
         <Route path="/suppliers/:id" element={<SupplierProfile />} />
 
-        {/* SQM/VQM 模組 */}
-        <Route path="/sqmvqm/quarterly" element={<QuarterlyPage />} />
-        <Route path="/sqmvqm/yearly" element={<AnnualEvaluation />} />
-
-        {/* OSAT 模組（读现有表，资料空则优雅显示） */}
-        <Route path="/osat" element={<OsatPage />} />
-
-        {/* 比价寻源（背调已并入比价与供应商档案） */}
-        <Route path="/sourcing" element={<SourcingPage />} />
+        {/* 评比模組（viewer 看报告者不可进入） */}
+        <Route path="/sqmvqm/quarterly" element={<RequireRole roles={WORKERS}><QuarterlyPage /></RequireRole>} />
+        <Route path="/sqmvqm/yearly" element={<RequireRole roles={WORKERS}><AnnualEvaluation /></RequireRole>} />
+        <Route path="/osat" element={<RequireRole roles={WORKERS}><OsatPage /></RequireRole>} />
+        <Route path="/sourcing" element={<RequireRole roles={WORKERS}><SourcingPage /></RequireRole>} />
 
         {/* 系统管理 */}
         <Route

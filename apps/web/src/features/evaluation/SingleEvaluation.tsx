@@ -1,12 +1,14 @@
-import { SaveOutlined } from '@ant-design/icons';
+import { LockOutlined, SaveOutlined, UnlockOutlined } from '@ant-design/icons';
 import { evaluateQuarter } from '@wx/scoring';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App as AntApp, Button, Card, Col, Divider, InputNumber, Row, Select, Space, Statistic, Typography } from 'antd';
+import { App as AntApp, Button, Card, Col, ConfigProvider, Divider, InputNumber, Row, Select, Space, Statistic, Tag, Typography } from 'antd';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useEffect, useMemo, useState } from 'react';
 import { analyticsApi, backgroundApi, evaluationsApi, suppliersApi } from '../../api';
+import { useAuth } from '../../auth/AuthContext';
 import { GradeTag } from '../../components/GradeTag';
 import { apiErrorMessage } from '../../lib/api';
+import { isPastPeriod } from '../../lib/period';
 import { gradeColor } from '../../theme';
 import type { Period, Quarter } from '../../types';
 
@@ -49,9 +51,16 @@ export function SingleEvaluation() {
   const [f, setF] = useState<Fields>(emptyFields);
   const [bg, setBg] = useState<Bg>(emptyBg);
   const [dirty, setDirty] = useState(false);
+  const { user } = useAuth();
+  const [unlocked, setUnlocked] = useState(false);
 
   const periodsQuery = useQuery({ queryKey: ['periods'], queryFn: analyticsApi.periods });
   const suppliersQuery = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list });
+
+  const isPast = isPastPeriod(period, periodsQuery.data);
+  const canUnlock = user?.role === 'admin' || user?.role === 'quality_yearly_editor';
+  const readOnly = isPast && !unlocked;
+  useEffect(() => setUnlocked(false), [period?.year, period?.quarter]);
 
   useEffect(() => {
     if (!period && periodsQuery.data?.length) setPeriod(periodsQuery.data[0]!);
@@ -134,14 +143,22 @@ export function SingleEvaluation() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Card variant="borderless" styles={{ body: { padding: '14px 20px' } }}>
-        <Space wrap>
-          <Select style={{ width: 110 }} placeholder="年份" value={period?.year} options={yearOptions}
-            onChange={(y) => setPeriod((p) => ({ year: y, quarter: p?.quarter ?? 'Q1' }))} />
-          <Select style={{ width: 90 }} placeholder="季度" value={period?.quarter} options={QUARTER_OPTS}
-            onChange={(q) => setPeriod((p) => ({ year: p?.year ?? new Date().getFullYear(), quarter: q as Quarter }))} />
-          <Select style={{ width: 300 }} showSearch placeholder="选择供应商" optionFilterProp="label" value={vendorId ?? undefined} options={supplierOptions} onChange={setVendorId} />
-          {isAU && <Typography.Text type="secondary">（AU 供应商，较严门槛）</Typography.Text>}
-        </Space>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Space wrap>
+            <Select style={{ width: 110 }} placeholder="年份" value={period?.year} options={yearOptions}
+              onChange={(y) => setPeriod((p) => ({ year: y, quarter: p?.quarter ?? 'Q1' }))} />
+            <Select style={{ width: 90 }} placeholder="季度" value={period?.quarter} options={QUARTER_OPTS}
+              onChange={(q) => setPeriod((p) => ({ year: p?.year ?? new Date().getFullYear(), quarter: q as Quarter }))} />
+            <Select style={{ width: 300 }} showSearch placeholder="选择供应商" optionFilterProp="label" value={vendorId ?? undefined} options={supplierOptions} onChange={setVendorId} />
+            {isAU && <Typography.Text type="secondary">（AU 供应商，较严门槛）</Typography.Text>}
+            {isPast && (unlocked ? <Tag color="warning">已解锁修正</Tag> : <Tag icon={<LockOutlined />}>已封存·唯读</Tag>)}
+          </Space>
+          {isPast && !unlocked && canUnlock && (
+            <Button size="small" type="link" icon={<UnlockOutlined />} onClick={() => setUnlocked(true)}>
+              解锁修正
+            </Button>
+          )}
+        </div>
       </Card>
 
       {!vendorId ? (
@@ -150,6 +167,7 @@ export function SingleEvaluation() {
         <Row gutter={16}>
           {/* 输入表单 */}
           <Col xs={24} lg={15}>
+            <ConfigProvider componentDisabled={readOnly}>
             <Card title="① 品质" variant="borderless" style={{ marginBottom: 16 }}>
               <Row gutter={[16, 12]}>
                 <Col span={8}><N label="检验批数" value={f.receivedBatches} onChange={(v) => upd('receivedBatches', v)} /></Col>
@@ -176,6 +194,7 @@ export function SingleEvaluation() {
                 <Col span={6}><N label="配合度(0-100)" value={bg.cooperationScore} max={100} onChange={(v) => updBg('cooperationScore', v)} /></Col>
               </Row>
             </Card>
+            </ConfigProvider>
           </Col>
 
           {/* 即时结果 */}
@@ -211,7 +230,7 @@ export function SingleEvaluation() {
                   </LineChart>
                 </ResponsiveContainer>
               )}
-              <Button type="primary" icon={<SaveOutlined />} block style={{ marginTop: 12 }} loading={save.isPending} disabled={!dirty} onClick={() => save.mutate()}>
+              <Button type="primary" icon={<SaveOutlined />} block style={{ marginTop: 12 }} loading={save.isPending} disabled={!dirty || readOnly} onClick={() => save.mutate()}>
                 储存评比 + 背调
               </Button>
             </Card>

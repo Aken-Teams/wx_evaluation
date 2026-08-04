@@ -38,6 +38,7 @@ export function AppLayout() {
   const loc = useLocation();
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'quality_yearly_editor';
+  const isViewer = user?.role === 'viewer';
   const [pwOpen, setPwOpen] = useState(false);
 
   const menuItems: MenuProps['items'] = useMemo(
@@ -45,17 +46,22 @@ export function AppLayout() {
       { key: '/home', icon: <HomeOutlined />, label: '首页' },
       { key: '/suppliers', icon: <IdcardOutlined />, label: '供应商情报' },
       { key: '/dashboard', icon: <DashboardOutlined />, label: '分析仪表板' },
-      {
-        key: 'eval',
-        icon: <AuditOutlined />,
-        label: '评比',
-        children: [
-          { key: '/sqmvqm/quarterly', icon: <FormOutlined />, label: '季度评比' },
-          { key: '/sqmvqm/yearly', icon: <CalendarOutlined />, label: '年度评鉴' },
-          { key: '/osat', icon: <ApartmentOutlined />, label: 'OSAT 评比' },
-        ],
-      },
-      { key: '/sourcing', icon: <DollarOutlined />, label: '比价寻源' },
+      // 评比 / 比价：仅评比人员与管理员，看报告的（viewer）不显示
+      ...(!isViewer
+        ? [
+            {
+              key: 'eval',
+              icon: <AuditOutlined />,
+              label: '评比',
+              children: [
+                { key: '/sqmvqm/quarterly', icon: <FormOutlined />, label: '季度评比' },
+                { key: '/sqmvqm/yearly', icon: <CalendarOutlined />, label: '年度评鉴' },
+                { key: '/osat', icon: <ApartmentOutlined />, label: 'OSAT 评比' },
+              ],
+            },
+            { key: '/sourcing', icon: <DollarOutlined />, label: '比价寻源' },
+          ]
+        : []),
       ...(isAdmin
         ? [
             {

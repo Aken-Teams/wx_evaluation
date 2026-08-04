@@ -110,7 +110,7 @@ export const getProfile = async (id: number) => {
     getConfig(),
   ]);
 
-  // 季度評比歷史
+  // 季度評比歷史（含原始填報數據，供歷年明細唯讀檢視）
   const quarterlyHistory = reports.map((r) => {
     const s = evaluateQuarter(toScoringInput(r, isAU), cfg);
     return {
@@ -123,6 +123,18 @@ export const getProfile = async (id: number) => {
       purchase: s.purchase?.purchaseScore ?? null,
       service: s.serviceScore,
       noTransaction: s.noTransaction,
+      raw: {
+        receivedBatches: r.receivedBatches,
+        returnedBatches: r.returnedBatches,
+        externalCAR: r.externalCAR,
+        arr: r.arr,
+        untimelyResponseCCR: r.untimelyResponseCCR,
+        deliveryRate: r.deliveryRate,
+        productionLineStop: r.productionLineStop,
+        specialApproval: r.specialApproval,
+        serviceQuality: r.serviceQuality,
+        servicePurchase: r.servicePurchase,
+      },
     };
   });
 

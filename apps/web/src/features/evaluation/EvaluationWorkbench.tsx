@@ -1,12 +1,14 @@
-import { CalculatorOutlined, ImportOutlined, SaveOutlined } from '@ant-design/icons';
+import { CalculatorOutlined, ImportOutlined, LockOutlined, SaveOutlined, UnlockOutlined } from '@ant-design/icons';
 import { evaluateQuarter } from '@wx/scoring';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App as AntApp, Button, Card, InputNumber, Select, Space, Table, Tag, Typography } from 'antd';
+import { App as AntApp, Button, Card, ConfigProvider, InputNumber, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { analyticsApi, evaluationsApi, suppliersApi, type SaveEvaluationItem } from '../../api';
+import { useAuth } from '../../auth/AuthContext';
 import { GradeTag } from '../../components/GradeTag';
 import { apiErrorMessage } from '../../lib/api';
+import { isPastPeriod } from '../../lib/period';
 import type { EvaluationRow, Period, Quarter, QuarterlyResult, Supplier } from '../../types';
 
 interface Row {
@@ -107,8 +109,15 @@ export function EvaluationWorkbench() {
   const [period, setPeriod] = useState<Period | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [dirty, setDirty] = useState(false);
+  const { user } = useAuth();
+  const [unlocked, setUnlocked] = useState(false);
 
   const periodsQuery = useQuery({ queryKey: ['periods'], queryFn: analyticsApi.periods });
+
+  const isPast = isPastPeriod(period, periodsQuery.data);
+  const canUnlock = user?.role === 'admin' || user?.role === 'quality_yearly_editor';
+  const readOnly = isPast && !unlocked;
+  useEffect(() => setUnlocked(false), [period?.year, period?.quarter]);
 
   // 預設選最新有資料的期別
   useEffect(() => {
@@ -291,13 +300,19 @@ export function EvaluationWorkbench() {
               输入即时自动算分
             </Tag>
             {dirty && <Tag color="warning">有未储存的变更</Tag>}
+            {isPast && (unlocked ? <Tag color="warning">已解锁修正</Tag> : <Tag icon={<LockOutlined />}>已封存·唯读</Tag>)}
           </Space>
           <Space>
+            {isPast && !unlocked && canUnlock && (
+              <Button type="link" icon={<UnlockOutlined />} onClick={() => setUnlocked(true)}>
+                解锁修正
+              </Button>
+            )}
             <Button
               icon={<ImportOutlined />}
               onClick={() => carryOver.mutate()}
               loading={carryOver.isPending}
-              disabled={!period}
+              disabled={!period || readOnly}
             >
               带入上一季
             </Button>
@@ -306,7 +321,7 @@ export function EvaluationWorkbench() {
               icon={<SaveOutlined />}
               onClick={() => save.mutate()}
               loading={save.isPending}
-              disabled={!dirty}
+              disabled={!dirty || readOnly}
             >
               储存
             </Button>
@@ -315,15 +330,17 @@ export function EvaluationWorkbench() {
       </Card>
 
       <Card variant="borderless" styles={{ body: { padding: 0 } }}>
-        <Table<Row>
-          rowKey="vendorId"
-          columns={columns}
-          dataSource={rows}
-          loading={evalQuery.isLoading}
-          size="small"
-          pagination={false}
-          scroll={{ x: 1400, y: 'calc(100vh - 280px)' }}
-        />
+        <ConfigProvider componentDisabled={readOnly}>
+          <Table<Row>
+            rowKey="vendorId"
+            columns={columns}
+            dataSource={rows}
+            loading={evalQuery.isLoading}
+            size="small"
+            pagination={false}
+            scroll={{ x: 1400, y: 'calc(100vh - 280px)' }}
+          />
+        </ConfigProvider>
       </Card>
     </Space>
   );

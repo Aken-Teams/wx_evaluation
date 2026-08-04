@@ -143,6 +143,18 @@ export interface QuarterlyHistoryPoint {
   purchase: number | null;
   service: number | null;
   noTransaction: boolean;
+  raw: {
+    receivedBatches: number;
+    returnedBatches: number;
+    externalCAR: number;
+    arr: number;
+    untimelyResponseCCR: number;
+    deliveryRate: number | null;
+    productionLineStop: number;
+    specialApproval: number;
+    serviceQuality: number;
+    servicePurchase: number;
+  };
 }
 
 export interface AnnualHistoryPoint {
