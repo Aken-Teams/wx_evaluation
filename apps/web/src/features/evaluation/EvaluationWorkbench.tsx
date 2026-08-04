@@ -4,10 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Button, Card, InputNumber, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
-import { analyticsApi, evaluationsApi, type SaveEvaluationItem } from '../../api';
+import { analyticsApi, evaluationsApi, suppliersApi, type SaveEvaluationItem } from '../../api';
 import { GradeTag } from '../../components/GradeTag';
 import { apiErrorMessage } from '../../lib/api';
-import type { EvaluationRow, Period, Quarter, QuarterlyResult } from '../../types';
+import type { EvaluationRow, Period, Quarter, QuarterlyResult, Supplier } from '../../types';
 
 interface Row {
   vendorId: number;
@@ -60,6 +60,29 @@ const fromApi = (e: EvaluationRow): Row => ({
   score: e.score,
 });
 
+/** 从供应商主档建立空白列（供尚无该季资料的供应商填写） */
+const blankRow = (s: Supplier): Row => {
+  const base = {
+    vendorId: s.id,
+    vendorName: s.name,
+    isAU: !!s.isAU && s.isAU.toUpperCase().includes('AU'),
+    receivedBatches: 0,
+    returnedBatches: 0,
+    externalCAR: 0,
+    arr: 0,
+    untimelyResponseCCR: 0,
+    serviceQuality: 0,
+    servicePurchase: 0,
+    deliveryRate: 100 as number | null,
+    specialApproval: 0,
+    productionLineStop: 0,
+    remarks: null as string | null,
+  };
+  return { ...base, score: scoreOf(base) };
+};
+
+const QUARTER_OPTS = (['Q1', 'Q2', 'Q3', 'Q4'] as const).map((q) => ({ value: q, label: q }));
+
 const prevPeriod = (year: number, quarter: Quarter): Period => {
   const q = Number(quarter[1]);
   return q === 1 ? { year: year - 1, quarter: 'Q4' } : { year, quarter: `Q${q - 1}` as Quarter };
@@ -92,18 +115,20 @@ export function EvaluationWorkbench() {
     if (!period && periodsQuery.data?.length) setPeriod(periodsQuery.data[0]!);
   }, [period, periodsQuery.data]);
 
+  const suppliersQuery = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list });
   const evalQuery = useQuery({
     queryKey: ['evaluations', period?.year, period?.quarter],
     queryFn: () => evaluationsApi.getQuarterly(period!.year, period!.quarter),
     enabled: !!period,
   });
 
+  // 以「供应商主档」为基底，合并当季已有资料；尚无资料的供应商显示空白列可填（支援新季度）
   useEffect(() => {
-    if (evalQuery.data) {
-      setRows(evalQuery.data.map(fromApi));
-      setDirty(false);
-    }
-  }, [evalQuery.data]);
+    if (!suppliersQuery.data || !evalQuery.data) return;
+    const byId = new Map(evalQuery.data.map((e) => [e.vendorId, fromApi(e)]));
+    setRows(suppliersQuery.data.map((s) => byId.get(s.id) ?? blankRow(s)));
+    setDirty(false);
+  }, [suppliersQuery.data, evalQuery.data]);
 
   const updateCell = (vendorId: number, field: keyof Row, value: number | null) => {
     setRows((prev) =>
@@ -170,14 +195,12 @@ export function EvaluationWorkbench() {
     onError: (e) => message.error(apiErrorMessage(e)),
   });
 
-  const periodOptions = useMemo(
-    () =>
-      (periodsQuery.data ?? []).map((p) => ({
-        value: `${p.year}-${p.quarter}`,
-        label: `${p.year} 年 ${p.quarter}`,
-      })),
-    [periodsQuery.data],
-  );
+  const yearOptions = useMemo(() => {
+    const base = (periodsQuery.data ?? []).map((p) => p.year);
+    const cur = new Date().getFullYear();
+    const set = new Set<number>([...base, cur, Math.max(cur, ...(base.length ? base : [cur])) + 1]);
+    return [...set].sort((a, b) => b - a).map((y) => ({ value: y, label: `${y} 年` }));
+  }, [periodsQuery.data]);
 
   const columns: ColumnsType<Row> = [
     {
@@ -250,15 +273,19 @@ export function EvaluationWorkbench() {
           <Space wrap>
             <Typography.Text strong>评比期别：</Typography.Text>
             <Select
-              style={{ width: 180 }}
-              value={period ? `${period.year}-${period.quarter}` : undefined}
-              options={periodOptions}
+              style={{ width: 110 }}
+              placeholder="年份"
+              value={period?.year}
+              options={yearOptions}
               loading={periodsQuery.isLoading}
-              onChange={(v) => {
-                const [y, q] = v.split('-');
-                setPeriod({ year: Number(y), quarter: q as Quarter });
-              }}
-              placeholder="选择年 / 季"
+              onChange={(y) => setPeriod((p) => ({ year: y, quarter: p?.quarter ?? 'Q1' }))}
+            />
+            <Select
+              style={{ width: 90 }}
+              placeholder="季度"
+              value={period?.quarter}
+              options={QUARTER_OPTS}
+              onChange={(q) => setPeriod((p) => ({ year: p?.year ?? new Date().getFullYear(), quarter: q as Quarter }))}
             />
             <Tag icon={<CalculatorOutlined />} color="processing">
               输入即时自动算分

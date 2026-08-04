@@ -123,14 +123,22 @@ export function SingleEvaluation() {
   });
 
   const supplierOptions = (suppliersQuery.data ?? []).map((s) => ({ value: s.id, label: s.name }));
-  const periodOptions = (periodsQuery.data ?? []).map((p) => ({ value: `${p.year}-${p.quarter}`, label: `${p.year} ${p.quarter}` }));
+  const yearOptions = (() => {
+    const base = (periodsQuery.data ?? []).map((p) => p.year);
+    const cur = new Date().getFullYear();
+    const set = new Set<number>([...base, cur, Math.max(cur, ...(base.length ? base : [cur])) + 1]);
+    return [...set].sort((a, b) => b - a).map((y) => ({ value: y, label: `${y} 年` }));
+  })();
+  const QUARTER_OPTS = (['Q1', 'Q2', 'Q3', 'Q4'] as const).map((q) => ({ value: q, label: q }));
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Card variant="borderless" styles={{ body: { padding: '14px 20px' } }}>
         <Space wrap>
-          <Select style={{ width: 130 }} placeholder="期别" value={period ? `${period.year}-${period.quarter}` : undefined} options={periodOptions}
-            onChange={(v) => { const [y, q] = v.split('-'); setPeriod({ year: Number(y), quarter: q as Quarter }); }} />
+          <Select style={{ width: 110 }} placeholder="年份" value={period?.year} options={yearOptions}
+            onChange={(y) => setPeriod((p) => ({ year: y, quarter: p?.quarter ?? 'Q1' }))} />
+          <Select style={{ width: 90 }} placeholder="季度" value={period?.quarter} options={QUARTER_OPTS}
+            onChange={(q) => setPeriod((p) => ({ year: p?.year ?? new Date().getFullYear(), quarter: q as Quarter }))} />
           <Select style={{ width: 300 }} showSearch placeholder="选择供应商" optionFilterProp="label" value={vendorId ?? undefined} options={supplierOptions} onChange={setVendorId} />
           {isAU && <Typography.Text type="secondary">（AU 供应商，较严门槛）</Typography.Text>}
         </Space>
