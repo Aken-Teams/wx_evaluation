@@ -1,4 +1,5 @@
-import { CrownOutlined, EditOutlined, EyeOutlined, LockOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons';
+import { CrownOutlined, EditOutlined, EyeOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
+import { ShieldCheck } from 'lucide-react';
 import { Button, Card, Divider, Form, Input, Space, Typography, message } from 'antd';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -42,7 +43,7 @@ export function LoginPage() {
     >
       <Card style={{ width: 380, boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }} variant="borderless">
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <SafetyCertificateOutlined style={{ fontSize: 40, color: '#1a56db' }} />
+          <ShieldCheck size={40} color="#2563eb" />
           <Typography.Title level={4} style={{ marginTop: 12, marginBottom: 0 }}>
             供应商评比系统
           </Typography.Title>

@@ -1,4 +1,4 @@
-import { ArrowDownOutlined, ArrowUpOutlined, FormOutlined, IdcardOutlined, WarningOutlined } from '@ant-design/icons';
+import { Building2, CalendarCheck, Gauge, LayoutDashboard, SquarePen, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, Col, Empty, List, Row, Space, Statistic, Tag, Typography } from 'antd';
 import { useMemo } from 'react';
@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { analyticsApi } from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { GradeTag } from '../../components/GradeTag';
+import { PageHeader } from '../../components/PageHeader';
+import { StatCard } from '../../components/StatCard';
 import type { RankingItem } from '../../types';
 
 /** 本季 vs 上季，算出漲跌 movers */
@@ -39,26 +41,28 @@ function ManagerHome() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space style={{ justifyContent: 'space-between', width: '100%' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          供应商情报概览 {period && <Typography.Text type="secondary" style={{ fontSize: 14 }}>· {period.year} {period.quarter}</Typography.Text>}
-        </Typography.Title>
-        <Space>
-          <Button icon={<IdcardOutlined />} onClick={() => nav('/suppliers')}>供应商情报</Button>
-          <Button onClick={() => nav('/dashboard')}>完整分析</Button>
-        </Space>
-      </Space>
+      <PageHeader
+        icon={<LayoutDashboard size={22} />}
+        title="供应商情报概览"
+        subtitle={period ? `当前评比期别 ${period.year} ${period.quarter}` : undefined}
+        extra={
+          <>
+            <Button icon={<Building2 size={16} />} onClick={() => nav('/suppliers')}>供应商情报</Button>
+            <Button onClick={() => nav('/dashboard')}>完整分析</Button>
+          </>
+        }
+      />
 
-      <Row gutter={16}>
-        <Col xs={12} md={6}><Card variant="borderless"><Statistic title="供应商" value={kpis?.count ?? 0} /></Card></Col>
-        <Col xs={12} md={6}><Card variant="borderless"><Statistic title="平均综合分" value={kpis?.avgScore ?? 0} precision={2} /></Card></Col>
-        <Col xs={12} md={6}><Card variant="borderless"><Statistic title="需关注" value={watchlist.length} valueStyle={{ color: watchlist.length ? '#e3a008' : undefined }} prefix={<WarningOutlined />} /></Card></Col>
-        <Col xs={12} md={6}><Card variant="borderless"><Statistic title="本季降级" value={kpis?.downgraded ?? 0} valueStyle={{ color: (kpis?.downgraded ?? 0) ? '#e02424' : undefined }} prefix={<ArrowDownOutlined />} /></Card></Col>
+      <Row gutter={[16, 16]}>
+        <Col xs={12} md={6}><StatCard title="供应商总数" value={kpis?.count ?? 0} icon={<Building2 size={22} />} color="#2563eb" /></Col>
+        <Col xs={12} md={6}><StatCard title="平均综合分" value={(kpis?.avgScore ?? 0).toFixed(2)} icon={<Gauge size={22} />} color="#16a34a" /></Col>
+        <Col xs={12} md={6}><StatCard title="需关注" value={watchlist.length} icon={<TriangleAlert size={22} />} color="#d97706" /></Col>
+        <Col xs={12} md={6}><StatCard title="本季降级" value={kpis?.downgraded ?? 0} icon={<TrendingDown size={22} />} color="#dc2626" /></Col>
       </Row>
 
       <Row gutter={16}>
         <Col xs={24} lg={12}>
-          <Card title={<Space><WarningOutlined style={{ color: '#e3a008' }} />需要关注的供应商</Space>} variant="borderless" styles={{ body: { minHeight: 240 } }}>
+          <Card title={<Space><TriangleAlert size={16} color="#d97706" />需要关注的供应商</Space>} variant="borderless" styles={{ body: { minHeight: 240 } }}>
             {watchlist.length ? (
               <List
                 size="small"
@@ -82,7 +86,7 @@ function ManagerHome() {
             ) : (
               <Row gutter={16}>
                 <Col span={12}>
-                  <Typography.Text type="success"><ArrowUpOutlined /> 上升</Typography.Text>
+                  <Typography.Text type="success"><TrendingUp size={14} style={{ verticalAlign: '-2px' }} /> 上升</Typography.Text>
                   {up.map((m) => (
                     <div key={m.vendorId} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', cursor: 'pointer' }} onClick={() => nav(`/suppliers/${m.vendorId}`)}>
                       <span style={{ fontSize: 13 }}>{m.vendorName}</span>
@@ -91,7 +95,7 @@ function ManagerHome() {
                   ))}
                 </Col>
                 <Col span={12}>
-                  <Typography.Text type="danger"><ArrowDownOutlined /> 下降</Typography.Text>
+                  <Typography.Text type="danger"><TrendingDown size={14} style={{ verticalAlign: '-2px' }} /> 下降</Typography.Text>
                   {down.map((m) => (
                     <div key={m.vendorId} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', cursor: 'pointer' }} onClick={() => nav(`/suppliers/${m.vendorId}`)}>
                       <span style={{ fontSize: 13 }}>{m.vendorName}</span>
@@ -114,28 +118,30 @@ function EvaluatorHome() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={4} style={{ margin: 0 }}>
-        评比工作台 {period && <Typography.Text type="secondary" style={{ fontSize: 14 }}>· 当前 {period.year} {period.quarter}</Typography.Text>}
-      </Typography.Title>
+      <PageHeader
+        icon={<SquarePen size={22} />}
+        title="评比工作台"
+        subtitle={period ? `当前评比期别 ${period.year} ${period.quarter}` : undefined}
+      />
 
       <Row gutter={16}>
         <Col xs={24} md={8}>
           <Card variant="borderless" hoverable onClick={() => nav('/sqmvqm/quarterly')} styles={{ body: { textAlign: 'center', padding: 28 } }}>
-            <FormOutlined style={{ fontSize: 32, color: '#1a56db' }} />
+            <SquarePen size={30} color="#2563eb" />
             <div style={{ fontWeight: 600, marginTop: 12, fontSize: 16 }}>季度评比</div>
             <Typography.Text type="secondary">单家专业评比 / 批量录入</Typography.Text>
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card variant="borderless" hoverable onClick={() => nav('/sqmvqm/yearly')} styles={{ body: { textAlign: 'center', padding: 28 } }}>
-            <IdcardOutlined style={{ fontSize: 32, color: '#0e9f6e' }} />
+            <CalendarCheck size={30} color="#16a34a" />
             <div style={{ fontWeight: 600, marginTop: 12, fontSize: 16 }}>年度评鉴</div>
             <Typography.Text type="secondary">VDA/QSA/HSF 年度稽核</Typography.Text>
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card variant="borderless" hoverable onClick={() => nav('/suppliers')} styles={{ body: { textAlign: 'center', padding: 28 } }}>
-            <WarningOutlined style={{ fontSize: 32, color: '#e3a008' }} />
+            <Building2 size={30} color="#d97706" />
             <div style={{ fontWeight: 600, marginTop: 12, fontSize: 16 }}>供应商情报</div>
             <Typography.Text type="secondary">查看供应商档案与排名</Typography.Text>
           </Card>

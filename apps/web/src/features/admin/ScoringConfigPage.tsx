@@ -1,4 +1,5 @@
-import { ReloadOutlined, SaveOutlined, SlidersOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
+import { SlidersHorizontal } from 'lucide-react';
 import type { ScoringConfig } from '@wx/scoring';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Alert, Button, Card, Col, InputNumber, Row, Space, Table, Tabs, Tag, Typography } from 'antd';
@@ -144,7 +145,7 @@ export function ScoringConfigPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        icon={<SlidersOutlined />}
+        icon={<SlidersHorizontal size={22} />}
         title="评分设定"
         subtitle="调整各维度权重与等级门槛，套用于后续计算"
         extra={

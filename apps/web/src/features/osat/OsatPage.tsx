@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Card, Empty, Select, Space, Table, Typography } from 'antd';
+import { Alert, Card, Empty, Select, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { Network } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { osatApi } from '../../api';
+import { PageHeader } from '../../components/PageHeader';
 import type { OsatRow } from '../../types';
 
 export function OsatPage() {
@@ -43,23 +45,25 @@ export function OsatPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          OSAT 评比（岡山 / 苏州）
-        </Typography.Title>
-        {!noData && (
-          <Select
-            style={{ width: 180 }}
-            value={period ? `${period.year}-${period.month}` : undefined}
-            options={options}
-            loading={periodsQuery.isLoading}
-            onChange={(v) => {
-              const [y, m] = v.split('-');
-              setPeriod({ year: Number(y), month: Number(m) });
-            }}
-          />
-        )}
-      </Space>
+      <PageHeader
+        icon={<Network size={22} />}
+        title="OSAT 评比"
+        subtitle="岡山 / 苏州封测代工厂月度评比"
+        extra={
+          !noData && (
+            <Select
+              style={{ width: 180 }}
+              value={period ? `${period.year}-${period.month}` : undefined}
+              options={options}
+              loading={periodsQuery.isLoading}
+              onChange={(v) => {
+                const [y, m] = v.split('-');
+                setPeriod({ year: Number(y), month: Number(m) });
+              }}
+            />
+          )
+        }
+      />
 
       <Alert
         type="info"

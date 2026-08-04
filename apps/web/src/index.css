@@ -1,0 +1,100 @@
+/* ── 全域质感 polish ── */
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 卡片：柔和浮起阴影，让白卡从背景分离（premium 感） */
+.ant-card {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.ant-card-hoverable:hover {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+/* 顶栏细分隔线阴影 */
+.ant-layout-header {
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+}
+
+/* 侧栏：选中项加粗、图标间距 */
+.ant-menu-dark .ant-menu-item-selected {
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+.ant-menu-dark .ant-menu-item,
+.ant-menu-dark .ant-menu-submenu-title {
+  transition: all 0.15s ease;
+}
+
+/* 统计数字更紧凑有力 */
+.ant-statistic-content-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.ant-statistic-title {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* 表格：更轻的分隔、hover 反馈 */
+.ant-table-thead > tr > th {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* 细捲軸 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 链接色一致 */
+a {
+  color: #2563eb;
+}
+
+/* 页签下方留白 */
+.ant-tabs-nav {
+  margin-bottom: 16px !important;
+}
+
+/* lucide SVG 在菜单 / 按钮 / 头像里垂直居中 */
+.ant-menu-item svg,
+.ant-menu-submenu-title svg {
+  vertical-align: middle;
+}
+.ant-menu-item .ant-menu-item-icon,
+.ant-menu-submenu-title .ant-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.ant-btn > svg {
+  vertical-align: -0.18em;
+}

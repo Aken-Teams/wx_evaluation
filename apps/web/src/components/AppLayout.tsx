@@ -1,19 +1,19 @@
 import {
-  ApartmentOutlined,
-  AuditOutlined,
-  CalendarOutlined,
-  DashboardOutlined,
-  DollarOutlined,
-  FormOutlined,
-  HomeOutlined,
-  IdcardOutlined,
-  KeyOutlined,
-  LogoutOutlined,
-  SafetyCertificateOutlined,
-  SettingOutlined,
-  SlidersOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
+  BarChart3,
+  Building2,
+  CalendarCheck,
+  ClipboardList,
+  Home,
+  KeyRound,
+  LogOut,
+  Network,
+  Scale,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  SquarePen,
+  Users,
+} from 'lucide-react';
 import { Avatar, Dropdown, Layout, Menu, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 import { useMemo, useState } from 'react';
@@ -43,34 +43,34 @@ export function AppLayout() {
 
   const menuItems: MenuProps['items'] = useMemo(
     () => [
-      { key: '/home', icon: <HomeOutlined />, label: '首页' },
-      { key: '/suppliers', icon: <IdcardOutlined />, label: '供应商情报' },
-      { key: '/dashboard', icon: <DashboardOutlined />, label: '分析仪表板' },
+      { key: '/home', icon: <Home size={18} />, label: '首页' },
+      { key: '/suppliers', icon: <Building2 size={18} />, label: '供应商情报' },
+      { key: '/dashboard', icon: <BarChart3 size={18} />, label: '分析仪表板' },
       // 评比 / 比价：仅评比人员与管理员，看报告的（viewer）不显示
       ...(!isViewer
         ? [
             {
               key: 'eval',
-              icon: <AuditOutlined />,
+              icon: <ClipboardList size={18} />,
               label: '评比',
               children: [
-                { key: '/sqmvqm/quarterly', icon: <FormOutlined />, label: '季度评比' },
-                { key: '/sqmvqm/yearly', icon: <CalendarOutlined />, label: '年度评鉴' },
-                { key: '/osat', icon: <ApartmentOutlined />, label: 'OSAT 评比' },
+                { key: '/sqmvqm/quarterly', icon: <SquarePen size={18} />, label: '季度评比' },
+                { key: '/sqmvqm/yearly', icon: <CalendarCheck size={18} />, label: '年度评鉴' },
+                { key: '/osat', icon: <Network size={18} />, label: 'OSAT 评比' },
               ],
             },
-            { key: '/sourcing', icon: <DollarOutlined />, label: '比价寻源' },
+            { key: '/sourcing', icon: <Scale size={18} />, label: '比价寻源' },
           ]
         : []),
       ...(isAdmin
         ? [
             {
               key: 'admin',
-              icon: <SettingOutlined />,
+              icon: <Settings size={18} />,
               label: '系统管理',
               children: [
-                { key: '/admin/users', icon: <TeamOutlined />, label: '帐号管理' },
-                { key: '/admin/scoring', icon: <SlidersOutlined />, label: '评分设定' },
+                { key: '/admin/users', icon: <Users size={18} />, label: '帐号管理' },
+                { key: '/admin/scoring', icon: <SlidersHorizontal size={18} />, label: '评分设定' },
               ],
             },
           ]
@@ -102,20 +102,35 @@ export function AppLayout() {
       >
         <div
           style={{
-            height: 56,
+            height: 60,
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
-            padding: '0 20px',
+            gap: 11,
+            padding: '0 18px',
             color: '#fff',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
         >
-          <SafetyCertificateOutlined style={{ fontSize: 22, color: '#60a5fa' }} />
-          <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: 1 }}>供应商评比</span>
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(37,99,235,0.4)',
+            }}
+          >
+            <ShieldCheck size={19} color="#fff" strokeWidth={2} />
+          </div>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>供应商评比</span>
         </div>
         <Menu
           theme="dark"
           mode="inline"
+          style={{ marginTop: 10, borderInlineEnd: 'none' }}
           selectedKeys={[selectedKey]}
           defaultOpenKeys={['eval', 'admin']}
           items={menuItems}
@@ -140,9 +155,9 @@ export function AppLayout() {
           <Dropdown
             menu={{
               items: [
-                { key: 'changepw', icon: <KeyOutlined />, label: '修改密码', onClick: () => setPwOpen(true) },
+                { key: 'changepw', icon: <KeyRound size={15} />, label: '修改密码', onClick: () => setPwOpen(true) },
                 { type: 'divider' },
-                { key: 'logout', icon: <LogoutOutlined />, label: '登出', onClick: logout },
+                { key: 'logout', icon: <LogOut size={15} />, label: '登出', onClick: logout },
               ],
             }}
           >

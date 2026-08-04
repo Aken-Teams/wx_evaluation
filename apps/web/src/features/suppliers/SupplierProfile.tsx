@@ -1,4 +1,5 @@
-import { ArrowLeftOutlined, FallOutlined, RiseOutlined, RobotOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Card, Col, Descriptions, Empty, Result, Row, Space, Spin, Statistic, Table, Tag, Typography } from 'antd';
 import { askAi } from '../../components/AiAssistant';
@@ -95,14 +96,14 @@ export function SupplierProfile() {
       <Alert
         type="info"
         showIcon
-        icon={<RobotOutlined />}
+        icon={<Sparkles size={16} />}
         message={
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Space>
               <b>综合评估</b>
               <Tag>规则式 · AI 增强</Tag>
             </Space>
-            <Button size="small" type="link" icon={<RobotOutlined />} onClick={() => askAi(`请评估供应商「${vendor.name}」的整体表现、排名与风险。`)}>
+            <Button size="small" type="link" icon={<Sparkles size={14} />} onClick={() => askAi(`请评估供应商「${vendor.name}」的整体表现、排名与风险。`)}>
               问 AI 评估这家
             </Button>
           </Space>
@@ -134,7 +135,7 @@ export function SupplierProfile() {
           <Card
             title="最新构面"
             variant="borderless"
-            extra={trendDelta > 0 ? <RiseOutlined style={{ color: '#0e9f6e' }} /> : trendDelta < 0 ? <FallOutlined style={{ color: '#e02424' }} /> : null}
+            extra={trendDelta > 0 ? <TrendingUp size={16} color="#16a34a" /> : trendDelta < 0 ? <TrendingDown size={16} color="#dc2626" /> : null}
             styles={{ body: { minHeight: 280 } }}
           >
             {scored.length ? (

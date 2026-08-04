@@ -3,9 +3,11 @@ import { evaluateAnnual } from '@wx/scoring';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Button, Card, Input, InputNumber, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { CalendarCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { analyticsApi, annualApi, type SaveAnnualItem } from '../../api';
 import { GradeTag } from '../../components/GradeTag';
+import { PageHeader } from '../../components/PageHeader';
 import { apiErrorMessage } from '../../lib/api';
 import type { AnnualRow, Grade, Quarter } from '../../types';
 
@@ -162,10 +164,13 @@ export function AnnualEvaluation() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card variant="borderless" styles={{ body: { padding: '16px 20px' } }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-          <Space>
-            <Typography.Text strong>年度：</Typography.Text>
+      <PageHeader
+        icon={<CalendarCheck size={22} />}
+        title="年度评鉴"
+        subtitle="VDA / QSA / HSF 年度稽核 · 输入即时重算年度分"
+        extra={
+          <>
+            <Typography.Text strong>年度</Typography.Text>
             <Select
               style={{ width: 120 }}
               value={year ?? undefined}
@@ -173,14 +178,13 @@ export function AnnualEvaluation() {
               loading={periodsQuery.isLoading}
               onChange={setYear}
             />
-            <Tag color="processing">VDA/QSA/HSF 输入即时重算年度分</Tag>
             {dirty && <Tag color="warning">有未储存的变更</Tag>}
-          </Space>
-          <Button type="primary" icon={<SaveOutlined />} onClick={() => save.mutate()} loading={save.isPending} disabled={!dirty}>
-            储存
-          </Button>
-        </Space>
-      </Card>
+            <Button type="primary" icon={<SaveOutlined />} onClick={() => save.mutate()} loading={save.isPending} disabled={!dirty}>
+              储存
+            </Button>
+          </>
+        }
+      />
 
       <Card variant="borderless" styles={{ body: { padding: 0 } }}>
         <Table<Row>

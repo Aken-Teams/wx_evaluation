@@ -8,6 +8,7 @@ import App from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { queryClient } from './lib/queryClient';
 import { theme } from './theme';
+import './index.css';
 import 'dayjs/locale/zh-cn';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

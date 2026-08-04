@@ -1,4 +1,5 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, ShopOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Boxes } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App as AntApp,
@@ -125,7 +126,7 @@ export function SupplierManagement() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        icon={<ShopOutlined />}
+        icon={<Boxes size={22} />}
         title="供应商管理"
         subtitle={`共 ${listQuery.data?.length ?? 0} 家供应商 · 点名称可进档案`}
         extra={

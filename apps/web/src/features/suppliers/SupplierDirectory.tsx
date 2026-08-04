@@ -1,4 +1,5 @@
-import { DeleteOutlined, EditOutlined, IdcardOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Building2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -113,7 +114,7 @@ export function SupplierDirectory() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        icon={<IdcardOutlined />}
+        icon={<Building2 size={22} />}
         title="供应商情报"
         subtitle={`共 ${suppliersQuery.data?.length ?? 0} 家${latest ? ` · 评分依据 ${latest.year} ${latest.quarter}` : ''} · 点名称进档案`}
         extra={

@@ -1,4 +1,4 @@
-import { ArrowDownOutlined, TrophyOutlined, WarningOutlined } from '@ant-design/icons';
+import { BarChart3, Building2, Gauge, TrendingDown, TriangleAlert, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Col, Empty, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -25,6 +25,8 @@ import {
 } from 'recharts';
 import { analyticsApi } from '../../api';
 import { GradeTag } from '../../components/GradeTag';
+import { PageHeader } from '../../components/PageHeader';
+import { StatCard } from '../../components/StatCard';
 import { gradeColor } from '../../theme';
 import type { Period, Quarter, RankingItem } from '../../types';
 
@@ -155,59 +157,37 @@ export function DashboardPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          供应商评比 · 决策仪表板
-        </Typography.Title>
-        <Select
-          style={{ width: 180 }}
-          value={period ? `${period.year}-${period.quarter}` : undefined}
-          options={periodOptions}
-          loading={periodsQuery.isLoading}
-          onChange={(v) => {
-            const [y, q] = v.split('-');
-            setPeriod({ year: Number(y), quarter: q as Quarter });
-          }}
-        />
-      </Space>
+      <PageHeader
+        icon={<BarChart3 size={22} />}
+        title="决策仪表板"
+        subtitle="供应商评比 · 等级分布 / 排名 / 趋势 / 多维比较"
+        extra={
+          <Select
+            style={{ width: 180 }}
+            value={period ? `${period.year}-${period.quarter}` : undefined}
+            options={periodOptions}
+            loading={periodsQuery.isLoading}
+            onChange={(v) => {
+              const [y, q] = v.split('-');
+              setPeriod({ year: Number(y), quarter: q as Quarter });
+            }}
+          />
+        }
+      />
 
       {/* KPI 卡 */}
-      <Row gutter={16}>
+      <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
-          <Card variant="borderless">
-            <Statistic title="供应商总数" value={kpis?.count ?? 0} loading={summaryQuery.isLoading} />
-          </Card>
+          <StatCard title="供应商总数" value={kpis?.count ?? 0} icon={<Building2 size={22} />} color="#2563eb" />
         </Col>
         <Col xs={12} md={6}>
-          <Card variant="borderless">
-            <Statistic
-              title="平均综合分"
-              value={kpis?.avgScore ?? 0}
-              precision={2}
-              loading={summaryQuery.isLoading}
-            />
-          </Card>
+          <StatCard title="平均综合分" value={(kpis?.avgScore ?? 0).toFixed(2)} icon={<Gauge size={22} />} color="#16a34a" />
         </Col>
         <Col xs={12} md={6}>
-          <Card variant="borderless">
-            <Statistic
-              title="A 级家数"
-              value={kpis?.distribution.A ?? 0}
-              prefix={<TrophyOutlined style={{ color: gradeColor.A }} />}
-              loading={summaryQuery.isLoading}
-            />
-          </Card>
+          <StatCard title="A 级家数" value={kpis?.distribution.A ?? 0} icon={<Trophy size={22} />} color={gradeColor.A} />
         </Col>
         <Col xs={12} md={6}>
-          <Card variant="borderless">
-            <Statistic
-              title="本季降级家数"
-              value={kpis?.downgraded ?? 0}
-              valueStyle={{ color: (kpis?.downgraded ?? 0) > 0 ? '#e02424' : undefined }}
-              prefix={<ArrowDownOutlined />}
-              loading={summaryQuery.isLoading}
-            />
-          </Card>
+          <StatCard title="本季降级家数" value={kpis?.downgraded ?? 0} icon={<TrendingDown size={22} />} color="#dc2626" />
         </Col>
       </Row>
 
@@ -326,7 +306,7 @@ export function DashboardPage() {
           <Card
             title={
               <Space>
-                <WarningOutlined style={{ color: '#e3a008' }} />
+                <TriangleAlert size={16} color="#d97706" />
                 风险观察名单
               </Space>
             }

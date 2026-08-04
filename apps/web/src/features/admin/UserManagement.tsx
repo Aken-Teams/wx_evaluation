@@ -1,4 +1,5 @@
-import { KeyOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons';
+import { KeyOutlined, PlusOutlined } from '@ant-design/icons';
+import { Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App as AntApp,
@@ -133,7 +134,7 @@ export function UserManagement() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
-        icon={<TeamOutlined />}
+        icon={<Users size={22} />}
         title="帐号管理"
         subtitle={`共 ${listQuery.data?.length ?? 0} 个帐号 · 可切换角色 / 启用 / 重置密码`}
         extra={

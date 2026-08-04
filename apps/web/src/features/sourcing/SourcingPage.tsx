@@ -1,4 +1,5 @@
-import { DeleteOutlined, EditOutlined, MinusCircleOutlined, PlusOutlined, RobotOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, MinusCircleOutlined, PlusOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
+import { Scale, Sparkles } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -22,6 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { backgroundApi, sourcingApi, suppliersApi, type QuoteInput } from '../../api';
+import { PageHeader } from '../../components/PageHeader';
 import { apiErrorMessage } from '../../lib/api';
 import type { BackgroundRow, SourcingQuote, SourcingRecommendation } from '../../types';
 
@@ -257,14 +259,16 @@ export function SourcingPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          比价寻源
-        </Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { eventForm.resetFields(); setEventModal(true); }}>
-          新增比价案件
-        </Button>
-      </Space>
+      <PageHeader
+        icon={<Scale size={22} />}
+        title="比价寻源"
+        subtitle="多供应商报价比对 · 背调风险 · AI 择优建议"
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { eventForm.resetFields(); setEventModal(true); }}>
+            新增比价案件
+          </Button>
+        }
+      />
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         <Card variant="borderless" style={{ width: 280, flexShrink: 0 }} styles={{ body: { padding: 8 } }} title="案件列表">
@@ -483,7 +487,7 @@ export function SourcingPage() {
               ))}
             </div>
             {rec.ai.configured && rec.ai.reply ? (
-              <Alert type="info" showIcon icon={<RobotOutlined />} message="AI 说明" description={rec.ai.reply} />
+              <Alert type="info" showIcon icon={<Sparkles size={16} />} message="AI 说明" description={rec.ai.reply} />
             ) : (
               <Typography.Text type="secondary">（AI 未配置：以上为规则式综合评分建议。设定 Ollama 后将附上 AI 文字说明。）</Typography.Text>
             )}

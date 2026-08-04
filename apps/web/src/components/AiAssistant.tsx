@@ -1,4 +1,5 @@
-import { RobotOutlined, SendOutlined } from '@ant-design/icons';
+import { SendOutlined } from '@ant-design/icons';
+import { Bot } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Alert, Avatar, Button, Drawer, Empty, FloatButton, Input, Space, Spin, Tag, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
@@ -45,11 +46,11 @@ export function AiAssistant() {
 
   return (
     <>
-      <FloatButton icon={<RobotOutlined />} type="primary" tooltip="AI 助手" onClick={() => setOpen(true)} />
+      <FloatButton icon={<Bot size={20} />} type="primary" tooltip="AI 助手" onClick={() => setOpen(true)} />
       <Drawer
         title={
           <Space>
-            <RobotOutlined style={{ color: '#1a56db' }} /> AI 助手
+            <Bot size={18} color="#2563eb" style={{ verticalAlign: '-3px' }} /> AI 助手
             {statusQuery.data && <Tag color={statusQuery.data.configured ? 'success' : 'default'}>{statusQuery.data.configured ? '已连接' : '未配置'}</Tag>}
           </Space>
         }
@@ -63,12 +64,12 @@ export function AiAssistant() {
         )}
         <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
           {messages.length === 0 ? (
-            <Empty image={<RobotOutlined style={{ fontSize: 40, color: '#c3ccd9' }} />} description="询问供应商评分、排名、风险" style={{ marginTop: 40 }} />
+            <Empty image={<Bot size={44} color="#c3ccd9" />} description="询问供应商评分、排名、风险" style={{ marginTop: 40 }} />
           ) : (
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               {messages.map((m, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
-                  <Avatar size="small" icon={<RobotOutlined />} style={{ backgroundColor: m.role === 'user' ? '#1a56db' : '#0e9f6e', flexShrink: 0 }} />
+                  <Avatar size="small" icon={<Bot size={14} />} style={{ backgroundColor: m.role === 'user' ? '#2563eb' : '#16a34a', flexShrink: 0 }} />
                   <div style={{ maxWidth: '78%', padding: '7px 11px', borderRadius: 10, whiteSpace: 'pre-wrap', background: m.role === 'user' ? '#1a56db' : '#f1f5f9', color: m.role === 'user' ? '#fff' : '#1e293b', fontSize: 13 }}>
                     {m.content}
                   </div>
