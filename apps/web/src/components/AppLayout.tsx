@@ -7,6 +7,8 @@ import {
   KeyRound,
   LogOut,
   Network,
+  PanelLeftClose,
+  PanelLeftOpen,
   Scale,
   Settings,
   ShieldCheck,
@@ -14,7 +16,7 @@ import {
   SquarePen,
   Users,
 } from 'lucide-react';
-import { Avatar, Dropdown, Layout, Menu, Typography } from 'antd';
+import { Avatar, Dropdown, Layout, Menu, Tooltip, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -40,6 +42,12 @@ export function AppLayout() {
   const isAdmin = user?.role === 'admin' || user?.role === 'quality_yearly_editor';
   const isViewer = user?.role === 'viewer';
   const [pwOpen, setPwOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem('sidebar-collapsed') === '1');
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      localStorage.setItem('sidebar-collapsed', c ? '0' : '1');
+      return !c;
+    });
 
   const menuItems: MenuProps['items'] = useMemo(
     () => [
@@ -98,48 +106,80 @@ export function AppLayout() {
       <Sider
         theme="dark"
         width={220}
-        style={{ position: 'fixed', insetInlineStart: 0, top: 0, bottom: 0, height: '100vh', overflow: 'auto', zIndex: 11 }}
+        collapsedWidth={72}
+        collapsible
+        collapsed={collapsed}
+        trigger={null}
+        style={{ position: 'fixed', insetInlineStart: 0, top: 0, bottom: 0, height: '100vh', overflow: 'hidden', zIndex: 11, display: 'flex', flexDirection: 'column' }}
       >
         <div
           style={{
             height: 60,
             display: 'flex',
             alignItems: 'center',
-            gap: 11,
-            padding: '0 18px',
+            justifyContent: collapsed ? 'center' : 'space-between',
+            padding: collapsed ? 0 : '0 12px 0 18px',
             color: '#fff',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
         >
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(37,99,235,0.4)',
-            }}
-          >
-            <ShieldCheck size={19} color="#fff" strokeWidth={2} />
-          </div>
-          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>供应商评比</span>
+          {!collapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(37,99,235,0.4)',
+                  flexShrink: 0,
+                }}
+              >
+                <ShieldCheck size={19} color="#fff" strokeWidth={2} />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>供应商评比</span>
+            </div>
+          )}
+          <Tooltip title={collapsed ? '展开侧栏' : '收合侧栏'} placement="right">
+            <div
+              onClick={toggleCollapsed}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                color: '#c3ccd9',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={18} />}
+            </div>
+          </Tooltip>
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          style={{ marginTop: 10, borderInlineEnd: 'none' }}
-          selectedKeys={[selectedKey]}
-          defaultOpenKeys={['eval', 'admin']}
-          items={menuItems}
-          onClick={({ key }) => {
-            if (key.startsWith('/')) nav(key);
-          }}
-        />
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+          <Menu
+            theme="dark"
+            mode="inline"
+            style={{ marginTop: 10, borderInlineEnd: 'none' }}
+            selectedKeys={[selectedKey]}
+            defaultOpenKeys={['eval', 'admin']}
+            items={menuItems}
+            onClick={({ key }) => {
+              if (key.startsWith('/')) nav(key);
+            }}
+          />
+        </div>
       </Sider>
-      <Layout style={{ marginInlineStart: 220 }}>
+      <Layout style={{ marginInlineStart: collapsed ? 72 : 220, transition: 'margin-inline-start 0.2s' }}>
         <Header
           style={{
             position: 'sticky',
