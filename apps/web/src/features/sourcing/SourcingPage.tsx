@@ -1,9 +1,10 @@
 import { DeleteOutlined, EditOutlined, MinusCircleOutlined, PlusOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
-import { Scale, Sparkles } from 'lucide-react';
+import { Download, Scale, Sparkles } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   App as AntApp,
+  AutoComplete,
   Button,
   Card,
   Empty,
@@ -17,15 +18,17 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
-import { backgroundApi, sourcingApi, suppliersApi, type QuoteInput } from '../../api';
+import { analyticsApi, backgroundApi, sourcingApi, suppliersApi, type QuoteInput } from '../../api';
+import { GradeTag } from '../../components/GradeTag';
 import { PageHeader } from '../../components/PageHeader';
 import { apiErrorMessage } from '../../lib/api';
-import type { BackgroundRow, SourcingQuote, SourcingRecommendation } from '../../types';
+import type { BackgroundRow, Grade, SourcingQuote, SourcingRecommendation } from '../../types';
 
 const CUR_YEAR = 2026;
 const bgRiskLevel = (b: BackgroundRow | undefined) => {
@@ -43,6 +46,7 @@ export function SourcingPage() {
   const [eventModal, setEventModal] = useState(false);
   const [quoteModal, setQuoteModal] = useState(false);
   const [editingQuote, setEditingQuote] = useState<SourcingQuote | null>(null);
+  const [quoteTab, setQuoteTab] = useState('price');
 
   const eventsQuery = useQuery({ queryKey: ['sourcing-events'], queryFn: sourcingApi.listEvents });
   useEffect(() => {
@@ -58,14 +62,38 @@ export function SourcingPage() {
   // 背调带入比价：供应商名称 → 结构化背调风险（让背调影响选商决策）
   const suppliersQuery = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list });
   const bgQuery = useQuery({ queryKey: ['background', CUR_YEAR], queryFn: () => backgroundApi.get(CUR_YEAR) });
-  const bgByName = useMemo(() => {
+  // 最新一期评比等级：让「评比结果」也进入比价决策
+  const periodsQuery = useQuery({ queryKey: ['periods'], queryFn: analyticsApi.periods });
+  const latestPeriod = periodsQuery.data?.[0];
+  const summaryQuery = useQuery({
+    queryKey: ['summary', latestPeriod?.year, latestPeriod?.quarter],
+    queryFn: () => analyticsApi.summary(latestPeriod!.year, latestPeriod!.quarter),
+    enabled: !!latestPeriod,
+  });
+
+  // 统一「供应商画像」查找（评级 + 背调四维），供表格与表单共用，避免重复输入
+  const profileByName = useMemo(() => {
     const suppliers = suppliersQuery.data ?? [];
     const bgById = new Map((bgQuery.data ?? []).map((b) => [b.vendorId, b]));
+    const rankById = new Map((summaryQuery.data?.ranking ?? []).map((r) => [r.vendorId, r]));
     return (name: string) => {
-      const v = suppliers.find((s) => s.name.includes(name) || name.includes(s.name));
-      return v ? bgRiskLevel(bgById.get(v.id)) : null;
+      if (!name) return null;
+      const v =
+        suppliers.find((s) => s.name === name) ??
+        suppliers.find((s) => s.name.includes(name) || name.includes(s.name));
+      if (!v) return null;
+      const bg = bgById.get(v.id) ?? null;
+      const r = rankById.get(v.id) ?? null;
+      return { vendor: v, bg, grade: (r?.grade ?? null) as Grade | null, score: r?.score ?? null, risk: bgRiskLevel(bg ?? undefined) };
     };
-  }, [suppliersQuery.data, bgQuery.data]);
+  }, [suppliersQuery.data, bgQuery.data, summaryQuery.data]);
+  const bgByName = (name: string) => profileByName(name)?.risk ?? null;
+  const supplierOptions = useMemo(
+    () => (suppliersQuery.data ?? []).map((s) => ({ value: s.name })),
+    [suppliersQuery.data],
+  );
+  const watchedSupplier = Form.useWatch('supplierName', quoteForm) as string | undefined;
+  const watchedProfile = watchedSupplier ? profileByName(watchedSupplier) : null;
 
   // 议价前后对比：同一供应商同时有 议价前 + 议价后
   const negotiationPairs = useMemo(() => {
@@ -111,6 +139,7 @@ export function SourcingPage() {
       editingQuote ? sourcingApi.updateQuote(editingQuote.id, v) : sourcingApi.addQuote(selected!, v),
     onSuccess: () => {
       message.success(editingQuote ? '已更新报价' : '已新增报价');
+      if (!editingQuote) clearDraft();
       setQuoteModal(false);
       setEditingQuote(null);
       refetchAll();
@@ -147,14 +176,37 @@ export function SourcingPage() {
     onError: (e) => message.error(apiErrorMessage(e)),
   });
 
+  // 暂存草稿：把未提交的新增报价存到本机，下次打开自动带回（依案件区分）
+  const draftKey = (eventId: number | null) => `sourcing-quote-draft-${eventId}`;
+  const saveDraft = () => {
+    if (selected == null) return;
+    localStorage.setItem(draftKey(selected), JSON.stringify(quoteForm.getFieldsValue(true)));
+    message.success('已暂存到本机，下次打开自动带回');
+  };
+  const clearDraft = () => {
+    if (selected != null) localStorage.removeItem(draftKey(selected));
+  };
+
   const openAddQuote = () => {
     setEditingQuote(null);
+    setQuoteTab('price');
     quoteForm.resetFields();
-    quoteForm.setFieldsValue({ stage: 'after' });
+    const draft = selected != null ? localStorage.getItem(draftKey(selected)) : null;
+    if (draft) {
+      try {
+        quoteForm.setFieldsValue(JSON.parse(draft));
+        message.info('已带入上次暂存的草稿');
+      } catch {
+        quoteForm.setFieldsValue({ stage: 'after' });
+      }
+    } else {
+      quoteForm.setFieldsValue({ stage: 'after' });
+    }
     setQuoteModal(true);
   };
   const openEditQuote = (q: SourcingQuote) => {
     setEditingQuote(q);
+    setQuoteTab('price');
     quoteForm.setFieldsValue(q);
     setQuoteModal(true);
   };
@@ -218,6 +270,15 @@ export function SourcingPage() {
     { title: '单价价差', width: 84, align: 'right', render: (_, q) => fluctuation(q.unitPriceTotal, minUnit) },
     { title: '级距单价', dataIndex: 'tierUnitPrice', width: 84, align: 'right', render: (v) => v ?? '—' },
     {
+      title: '评级',
+      width: 66,
+      align: 'center',
+      render: (_, q) => {
+        const g = profileByName(q.supplierName)?.grade;
+        return g ? <GradeTag grade={g} /> : <Tag>—</Tag>;
+      },
+    },
+    {
       title: '背调风险',
       width: 88,
       align: 'center',
@@ -256,6 +317,57 @@ export function SourcingPage() {
   ];
 
   const detail = detailQuery.data;
+
+  // 导出比价表为 CSV（UTF-8 BOM，Excel 直接打开、中文正常、无格式警告）
+  const exportCsv = () => {
+    if (!detail) return;
+    const pct = (val: number | null, min: number) => {
+      if (val == null || !isFinite(min) || min <= 0) return '';
+      return Math.abs(val - min) < 1e-9 ? '最低' : `+${(((val - min) / min) * 100).toFixed(1)}%`;
+    };
+    const headers = [
+      '供方', '评级', '阶段', '产品明细', '模具含税(万)', '模具价差', '单价合计', '单价价差', '级距单价',
+      '背调风险', '样品交期', '交货周期', '账期', '模具款条件', '金属级距', '本案备注', '综合评估', '最优',
+    ];
+    const rows = detail.quotes.map((q) => {
+      const products = q.products?.length
+        ? q.products.map((p) => `${p.name}:模${p.moldPrice ?? '—'}/单${p.unitPrice ?? '—'}`).join(' ; ')
+        : q.moldItems || '';
+      const p = profileByName(q.supplierName);
+      return [
+        q.supplierName,
+        p?.grade ?? '',
+        q.stage === 'before' ? '议价前' : '议价后',
+        products,
+        q.moldPriceTaxed ?? '',
+        pct(q.moldPriceTaxed, minMold),
+        q.unitPriceTotal ?? '',
+        pct(q.unitPriceTotal, minUnit),
+        q.tierUnitPrice ?? '',
+        p?.risk ? p.risk.text : '',
+        q.sampleLeadTime ?? '',
+        q.deliveryCycle ?? '',
+        q.paymentTerms ?? '',
+        q.moldPaymentTerms ?? '',
+        q.priceTier ?? '',
+        q.backgroundInfo ?? '',
+        q.evaluation ?? '',
+        q.isBest ? '★' : '',
+      ];
+    });
+    const esc = (v: unknown) => {
+      const s = String(v ?? '');
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers, ...rows].map((r) => r.map(esc).join(',')).join('\r\n');
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `比价表_${detail.title}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -311,6 +423,13 @@ export function SourcingPage() {
           extra={
             detail && (
               <Space>
+                <Button
+                  icon={<Download size={16} />}
+                  disabled={!detail.quotes.length}
+                  onClick={exportCsv}
+                >
+                  导出
+                </Button>
                 <Button
                   type="primary"
                   ghost
@@ -398,65 +517,158 @@ export function SourcingPage() {
         open={quoteModal}
         title={editingQuote ? '编辑报价' : '新增报价'}
         onCancel={() => setQuoteModal(false)}
-        onOk={() => quoteForm.submit()}
-        confirmLoading={saveQuote.isPending}
-        okText="储存"
-        cancelText="取消"
         width={720}
+        style={{ top: 32 }}
         destroyOnClose
+        styles={{ body: { maxHeight: '64vh', overflowY: 'auto', paddingRight: 6 } }}
+        footer={[
+          !editingQuote && (
+            <Button key="draft" onClick={saveDraft} style={{ float: 'left' }}>
+              暂存
+            </Button>
+          ),
+          <Button key="cancel" onClick={() => setQuoteModal(false)}>
+            取消
+          </Button>,
+          <Button key="ok" type="primary" loading={saveQuote.isPending} onClick={() => quoteForm.submit()}>
+            储存
+          </Button>,
+        ]}
       >
-        <Form form={quoteForm} layout="vertical" onFinish={(v) => saveQuote.mutate(v)} style={{ marginTop: 12 }}>
-          <Space style={{ width: '100%' }} size={12} align="start">
-            <Form.Item name="supplierName" label="供方名称" rules={[{ required: true }]} style={{ flex: 2 }}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="stage" label="阶段" style={{ flex: 1 }}>
-              <Select options={[{ value: 'before', label: '议价前' }, { value: 'after', label: '议价后' }]} />
-            </Form.Item>
-          </Space>
-          <Form.List name="products">
-            {(fields, { add, remove }) => (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Typography.Text strong>产品明细（脚架/框架、跳线…）</Typography.Text>
-                  <Button size="small" icon={<PlusOutlined />} onClick={() => add({ name: '', moldPrice: null, unitPrice: null })}>
-                    加产品
-                  </Button>
-                </div>
-                {fields.map(({ key, name, ...rest }) => (
-                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                    <Form.Item {...rest} name={[name, 'name']} rules={[{ required: true, message: '产品名' }]} style={{ marginBottom: 0 }}>
-                      <Input placeholder="产品名(脚架/跳线)" style={{ width: 160 }} />
+        <Form
+          form={quoteForm}
+          layout="vertical"
+          onFinish={(v) => saveQuote.mutate(v)}
+          onFinishFailed={() => setQuoteTab('price')}
+          style={{ marginTop: 4 }}
+        >
+          <Tabs
+            activeKey={quoteTab}
+            onChange={setQuoteTab}
+            items={[
+              {
+                key: 'price',
+                label: '① 报价',
+                forceRender: true,
+                children: (
+                  <>
+                    <Space style={{ width: '100%' }} size={12} align="start">
+                      <Form.Item name="supplierName" label="供方名称" rules={[{ required: true }]} style={{ flex: 2 }}>
+                        <AutoComplete
+                          options={supplierOptions}
+                          filterOption={(input, opt) => String(opt?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+                          placeholder="选既有供应商（自动带出评级/背调），或直接输入新供方"
+                        />
+                      </Form.Item>
+                      <Form.Item name="stage" label="阶段" style={{ flex: 1 }}>
+                        <Select options={[{ value: 'before', label: '议价前' }, { value: 'after', label: '议价后' }]} />
+                      </Form.Item>
+                    </Space>
+                    <Form.List name="products">
+                      {(fields, { add, remove }) => (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <Typography.Text strong>产品明细（脚架/框架、跳线…）</Typography.Text>
+                            <Button size="small" icon={<PlusOutlined />} onClick={() => add({ name: '', moldPrice: null, unitPrice: null })}>
+                              加产品
+                            </Button>
+                          </div>
+                          {fields.length === 0 && (
+                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                              选填：逐一产品比价时可加；只比单价合计可留空。
+                            </Typography.Text>
+                          )}
+                          {fields.map(({ key, name, ...rest }) => (
+                            <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                              <Form.Item {...rest} name={[name, 'name']} rules={[{ required: true, message: '产品名' }]} style={{ marginBottom: 0 }}>
+                                <Input placeholder="产品名(脚架/跳线)" style={{ width: 160 }} />
+                              </Form.Item>
+                              <Form.Item {...rest} name={[name, 'moldPrice']} style={{ marginBottom: 0 }}>
+                                <InputNumber placeholder="模具费" style={{ width: 110 }} />
+                              </Form.Item>
+                              <Form.Item {...rest} name={[name, 'unitPrice']} style={{ marginBottom: 0 }}>
+                                <InputNumber placeholder="未税单价" style={{ width: 110 }} />
+                              </Form.Item>
+                              <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#e02424' }} />
+                            </Space>
+                          ))}
+                        </div>
+                      )}
+                    </Form.List>
+                    <Space style={{ width: '100%' }} size={12} wrap>
+                      <Form.Item name="moldPriceTaxed" label="模具含税总(万元)"><InputNumber style={{ width: 150 }} /></Form.Item>
+                      <Form.Item name="unitPriceTotal" label="单价合计"><InputNumber style={{ width: 150 }} /></Form.Item>
+                      <Form.Item name="tierUnitPrice" label="级距单价"><InputNumber style={{ width: 130 }} /></Form.Item>
+                    </Space>
+                  </>
+                ),
+              },
+              {
+                key: 'terms',
+                label: '② 交期与条款',
+                forceRender: true,
+                children: (
+                  <>
+                    <Space style={{ width: '100%' }} size={12} wrap>
+                      <Form.Item name="sampleLeadTime" label="样品交期"><Input style={{ width: 150 }} placeholder="如 70天" /></Form.Item>
+                      <Form.Item name="deliveryCycle" label="交货周期"><Input style={{ width: 150 }} /></Form.Item>
+                      <Form.Item name="paymentTerms" label="账期"><Input style={{ width: 240 }} placeholder="如 TT30+180承兑汇票" /></Form.Item>
+                    </Space>
+                    <Space style={{ width: '100%' }} size={12} wrap>
+                      <Form.Item name="moldItems" label="模具品项"><Input style={{ width: 220 }} /></Form.Item>
+                      <Form.Item name="moldPaymentTerms" label="模具款条件"><Input style={{ width: 280 }} placeholder="如 定金30/送样40/验收30" /></Form.Item>
+                      <Form.Item name="priceTier" label="参考金属级距"><Input style={{ width: 200 }} placeholder="如 铜价78000-79000" /></Form.Item>
+                    </Space>
+                  </>
+                ),
+              },
+              {
+                key: 'bg',
+                label: '③ 背调与评估',
+                forceRender: true,
+                children: (
+                  <>
+                    {/* 评级 + 背调 自动由「评比 / 背调分析」带入，无需在此重复输入 */}
+                    <Alert
+                      type={watchedProfile ? 'info' : 'warning'}
+                      showIcon
+                      style={{ marginBottom: 16 }}
+                      message={
+                        watchedProfile ? (
+                          <Space size={16} wrap>
+                            <span>
+                              评级：{watchedProfile.grade ? <GradeTag grade={watchedProfile.grade} /> : '—'}
+                              {watchedProfile.score != null && <b style={{ marginLeft: 4 }}>{watchedProfile.score}</b>}
+                            </span>
+                            <span>
+                              背调风险：
+                              {watchedProfile.risk ? <Tag color={watchedProfile.risk.color}>{watchedProfile.risk.text}</Tag> : <Tag>无数据</Tag>}
+                            </span>
+                            {watchedProfile.bg ? (
+                              <span style={{ color: '#64748b', fontSize: 12 }}>
+                                拖欠 {watchedProfile.bg.latePaymentCount} · 客诉 {watchedProfile.bg.customerComplaintCount} · 8D{' '}
+                                {watchedProfile.bg.qualityAbnormal8D} · 配合度 {watchedProfile.bg.cooperationScore ?? '—'}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: 12 }}>该供应商本年度尚无背调数据</span>
+                            )}
+                          </Space>
+                        ) : (
+                          '新供方 / 未在供应商主档 —— 无评级与背调可带入（于「季度评比 → 批量背调」建立后即自动带入）'
+                        )
+                      }
+                    />
+                    <Form.Item name="backgroundInfo" label="本案备注" extra="仅填本次议价的特殊事项即可；背调四维已自动带入上方，无需重复输入">
+                      <Input.TextArea rows={2} />
                     </Form.Item>
-                    <Form.Item {...rest} name={[name, 'moldPrice']} style={{ marginBottom: 0 }}>
-                      <InputNumber placeholder="模具费" style={{ width: 110 }} />
+                    <Form.Item name="evaluation" label="综合评估">
+                      <Input.TextArea rows={3} />
                     </Form.Item>
-                    <Form.Item {...rest} name={[name, 'unitPrice']} style={{ marginBottom: 0 }}>
-                      <InputNumber placeholder="未税单价" style={{ width: 110 }} />
-                    </Form.Item>
-                    <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#e02424' }} />
-                  </Space>
-                ))}
-              </div>
-            )}
-          </Form.List>
-          <Space style={{ width: '100%' }} size={12} wrap>
-            <Form.Item name="moldPriceTaxed" label="模具含税总(万元)"><InputNumber style={{ width: 150 }} /></Form.Item>
-            <Form.Item name="unitPriceTotal" label="单价合计"><InputNumber style={{ width: 150 }} /></Form.Item>
-            <Form.Item name="tierUnitPrice" label="级距单价"><InputNumber style={{ width: 130 }} /></Form.Item>
-          </Space>
-          <Space style={{ width: '100%' }} size={12} wrap>
-            <Form.Item name="sampleLeadTime" label="样品交期"><Input style={{ width: 150 }} /></Form.Item>
-            <Form.Item name="deliveryCycle" label="交货周期"><Input style={{ width: 150 }} /></Form.Item>
-            <Form.Item name="paymentTerms" label="账期"><Input style={{ width: 200 }} /></Form.Item>
-          </Space>
-          <Space style={{ width: '100%' }} size={12} wrap>
-            <Form.Item name="moldItems" label="模具品项"><Input style={{ width: 220 }} /></Form.Item>
-            <Form.Item name="moldPaymentTerms" label="模具款条件"><Input style={{ width: 220 }} /></Form.Item>
-            <Form.Item name="priceTier" label="参考金属级距"><Input style={{ width: 200 }} /></Form.Item>
-          </Space>
-          <Form.Item name="backgroundInfo" label="背调信息"><Input.TextArea rows={2} /></Form.Item>
-          <Form.Item name="evaluation" label="综合评估"><Input.TextArea rows={2} /></Form.Item>
+                  </>
+                ),
+              },
+            ]}
+          />
         </Form>
       </Modal>
 
