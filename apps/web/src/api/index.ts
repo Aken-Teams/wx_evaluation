@@ -131,7 +131,8 @@ export const sourcingApi = {
     api.put<SourcingQuote>(`/sourcing/quotes/${id}`, data).then((r) => r.data),
   deleteQuote: (id: number) => api.delete(`/sourcing/quotes/${id}`).then((r) => r.data),
   markBest: (id: number) => api.post(`/sourcing/quotes/${id}/best`).then((r) => r.data),
-  recommend: (id: number) => api.post<SourcingRecommendation>(`/sourcing/events/${id}/recommend`).then((r) => r.data),
+  recommend: (id: number) =>
+    api.post<SourcingRecommendation>(`/sourcing/events/${id}/recommend`, undefined, { timeout: 120000 }).then((r) => r.data),
 };
 
 // ── Users ──
@@ -162,7 +163,7 @@ export interface ChatMsg {
 export const aiApi = {
   status: () => api.get<{ configured: boolean }>('/ai/status').then((r) => r.data),
   chat: (messages: ChatMsg[]) =>
-    api.post<{ configured: boolean; reply: string }>('/ai/chat', { messages }).then((r) => r.data),
+    api.post<{ configured: boolean; reply: string }>('/ai/chat', { messages }, { timeout: 120000 }).then((r) => r.data),
 };
 
 // ── Analytics ──

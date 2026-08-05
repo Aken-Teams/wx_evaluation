@@ -141,7 +141,8 @@ export const recommend = async (eventId: number) => {
       .map((r) => `${r.supplierName}：单价 ${r.price ?? '—'}，背调风险 ${r.bgRisk ?? '未知'}，综合评分 ${r.composite}`)
       .join('；');
     const system =
-      '你是采购寻源顾问。根据候选供应商的报价与背调风险（数字越大风险越高），用简体中文简洁地建议「最优一家」并说明理由（综合价格与背调考量），2~4 句话。';
+      '你是采购寻源顾问。根据候选供应商的报价与背调风险（数字越大风险越高），用简体中文简洁地建议「最优一家」并说明理由（综合价格与背调考量），2~4 句话。' +
+      '全程只使用简体中文，严禁夹杂繁体字、韩文、日文或整句英文（供应商名称等专有名词除外）。';
     const r = await ai.complete(system, `比价案件「${event.title}」候选供应商：${table}。请建议最优一家并说明理由。`);
     aiResult = { configured: true, reply: r.reply };
   }

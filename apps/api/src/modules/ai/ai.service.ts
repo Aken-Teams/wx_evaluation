@@ -9,7 +9,8 @@ const SYSTEM_PROMPT =
   '你是「供应商评比系统」的智能助手。可回答关于供应商的评分、排名、等级、风险，以及【物料类别、地区、供应商类型、名称/代码】等各类问题，一律用简体中文专业作答。' +
   '评分构面：品质(满分70)+交期(满分20)+服务(满分10)=综合(满分100)；等级 A~E（分数越高越好）。' +
   '当被问到「某物料类别有哪些厂商 / 推荐哪家」时，请从下方【当前数据】的「供应商目录」中筛选该类别的供应商，并可按等级/综合分从优排序推荐。' +
-  '重要：一切回答必须严格依据下方【当前数据】，不得臆测或杜撰不存在的供应商、料号、数值。若数据中确实没有相关信息，请直接说明「目前系统数据中没有这方面信息」，不要编造。';
+  '重要：一切回答必须严格依据下方【当前数据】，不得臆测或杜撰不存在的供应商、料号、数值。若数据中确实没有相关信息，请直接说明「目前系统数据中没有这方面信息」，不要编造。' +
+  '语言要求：全程只使用简体中文，严禁夹杂繁体字、韩文、日文或整句英文等其他语言文字（供应商名称、料号、代码等专有名词保持原样除外）。';
 
 /** 取最新期别摘要 + 供应商目录（含物料类别/地区/等级），作为 AI 的资料上下文（让回答有依据） */
 const buildContext = async (): Promise<string> => {
@@ -73,7 +74,8 @@ const buildHeaders = (): Record<string, string> => ({
  * 针对 thinking 模型（如 gemma4）：max_tokens 需较大，content 可能为空时 fallback 到 reasoning。
  */
 const callCompletions = async (messages: ChatMessage[]): Promise<string> => {
-  const payload = { model: env.OLLAMA_MODEL || 'llama3.2', stream: false, max_tokens: 1500, messages };
+  // thinking 模型的 reasoning 与 content 共用 max_tokens；给足空间避免正文被截断（finish_reason=length）
+  const payload = { model: env.OLLAMA_MODEL || 'llama3.2', stream: false, max_tokens: 4000, messages };
   const resp = await fetch(`${env.OLLAMA_API_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: buildHeaders(),

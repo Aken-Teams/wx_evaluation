@@ -14,6 +14,14 @@ const QUESTION_TEMPLATES = [
   '本季有哪些供应商被降级？',
 ];
 
+// 接续追问的小范本（回覆后显示，供参考）
+const FOLLOWUP_TEMPLATES = [
+  '这几家的背调风险如何？',
+  '只看 A 级的',
+  '按品质分再排序',
+  '帮我总结成 3 点',
+];
+
 /** 全站浮動 AI 助手：隨處可問，也可由 window 事件 'ai:ask' 帶問題開啟。 */
 export function AiAssistant() {
   const [open, setOpen] = useState(false);
@@ -100,6 +108,21 @@ export function AiAssistant() {
                 </div>
               ))}
               {send.isPending && <Spin size="small" style={{ marginLeft: 8 }} />}
+              {!send.isPending && messages[messages.length - 1]?.role === 'assistant' && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingInlineStart: 32 }}>
+                  <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>追问：</span>
+                  {FOLLOWUP_TEMPLATES.map((t) => (
+                    <Tag
+                      key={t}
+                      color="blue"
+                      style={{ cursor: 'pointer', margin: 0, borderRadius: 12, padding: '2px 10px' }}
+                      onClick={() => doSend(t)}
+                    >
+                      {t}
+                    </Tag>
+                  ))}
+                </div>
+              )}
             </Space>
           )}
         </div>
