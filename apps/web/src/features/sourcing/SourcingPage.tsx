@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, MinusCircleOutlined, PlusOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
 import { Download, Scale, Sparkles } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -158,8 +158,8 @@ export function SourcingPage() {
 
   const markBest = useMutation({
     mutationFn: (id: number) => sourcingApi.markBest(id),
-    onSuccess: () => {
-      message.success('已标记最优供应商');
+    onSuccess: (r: { isBest?: boolean }) => {
+      message.success(r?.isBest === false ? '已取消最优标记' : '已标记最优供应商');
       refetchAll();
     },
     onError: (e) => message.error(apiErrorMessage(e)),
@@ -305,7 +305,7 @@ export function SourcingPage() {
             type="text"
             icon={q.isBest ? <StarFilled style={{ color: '#e3a008' }} /> : <StarOutlined />}
             onClick={() => markBest.mutate(q.id)}
-            title="标记最优"
+            title={q.isBest ? '取消最优标记' : '标记最优'}
           />
           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditQuote(q)} />
           <Popconfirm title="删除此报价？" onConfirm={() => deleteQuote.mutate(q.id)} okText="删除" cancelText="取消">
@@ -552,53 +552,78 @@ export function SourcingPage() {
                 forceRender: true,
                 children: (
                   <>
-                    <Space style={{ width: '100%' }} size={12} align="start">
-                      <Form.Item name="supplierName" label="供方名称" rules={[{ required: true }]} style={{ flex: 2 }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <Form.Item name="supplierName" label="供方名称" rules={[{ required: true }]} style={{ flex: 1, minWidth: 0 }}>
                         <AutoComplete
+                          style={{ width: '100%' }}
                           options={supplierOptions}
                           filterOption={(input, opt) => String(opt?.value ?? '').toLowerCase().includes(input.toLowerCase())}
                           placeholder="选既有供应商（自动带出评级/背调），或直接输入新供方"
                         />
                       </Form.Item>
-                      <Form.Item name="stage" label="阶段" style={{ flex: 1 }}>
-                        <Select options={[{ value: 'before', label: '议价前' }, { value: 'after', label: '议价后' }]} />
+                      <Form.Item name="stage" label="阶段" style={{ width: 150, flexShrink: 0 }}>
+                        <Select style={{ width: '100%' }} options={[{ value: 'before', label: '议价前' }, { value: 'after', label: '议价后' }]} />
                       </Form.Item>
-                    </Space>
+                    </div>
                     <Form.List name="products">
                       {(fields, { add, remove }) => (
-                        <div style={{ marginBottom: 12 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                             <Typography.Text strong>产品明细（脚架/框架、跳线…）</Typography.Text>
-                            <Button size="small" icon={<PlusOutlined />} onClick={() => add({ name: '', moldPrice: null, unitPrice: null })}>
-                              加产品
+                            <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={() => add({ name: '', moldPrice: null, unitPrice: null })}>
+                              加一列产品
                             </Button>
                           </div>
-                          {fields.length === 0 && (
-                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                              选填：逐一产品比价时可加；只比单价合计可留空。
-                            </Typography.Text>
-                          )}
-                          {fields.map(({ key, name, ...rest }) => (
-                            <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                              <Form.Item {...rest} name={[name, 'name']} rules={[{ required: true, message: '产品名' }]} style={{ marginBottom: 0 }}>
-                                <Input placeholder="产品名(脚架/跳线)" style={{ width: 160 }} />
-                              </Form.Item>
-                              <Form.Item {...rest} name={[name, 'moldPrice']} style={{ marginBottom: 0 }}>
-                                <InputNumber placeholder="模具费" style={{ width: 110 }} />
-                              </Form.Item>
-                              <Form.Item {...rest} name={[name, 'unitPrice']} style={{ marginBottom: 0 }}>
-                                <InputNumber placeholder="未税单价" style={{ width: 110 }} />
-                              </Form.Item>
-                              <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#e02424' }} />
-                            </Space>
-                          ))}
+                          <Table
+                            size="small"
+                            pagination={false}
+                            dataSource={fields}
+                            rowKey="key"
+                            locale={{ emptyText: '选填：逐一产品比价时点「加一列产品」；只比单价合计可留空' }}
+                            columns={[
+                              {
+                                title: '产品名',
+                                render: (_, field) => (
+                                  <Form.Item name={[field.name, 'name']} rules={[{ required: true, message: '请填产品名' }]} style={{ margin: 0 }}>
+                                    <Input placeholder="脚架 / 框架 / 跳线" />
+                                  </Form.Item>
+                                ),
+                              },
+                              {
+                                title: '模具费(万元)',
+                                width: 150,
+                                render: (_, field) => (
+                                  <Form.Item name={[field.name, 'moldPrice']} style={{ margin: 0 }}>
+                                    <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
+                                  </Form.Item>
+                                ),
+                              },
+                              {
+                                title: '未税单价(元/K)',
+                                width: 160,
+                                render: (_, field) => (
+                                  <Form.Item name={[field.name, 'unitPrice']} style={{ margin: 0 }}>
+                                    <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
+                                  </Form.Item>
+                                ),
+                              },
+                              {
+                                title: '',
+                                width: 44,
+                                align: 'center',
+                                render: (_, field) => (
+                                  <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
+                                ),
+                              },
+                            ]}
+                          />
                         </div>
                       )}
                     </Form.List>
                     <Space style={{ width: '100%' }} size={12} wrap>
-                      <Form.Item name="moldPriceTaxed" label="模具含税总(万元)"><InputNumber style={{ width: 150 }} /></Form.Item>
-                      <Form.Item name="unitPriceTotal" label="单价合计"><InputNumber style={{ width: 150 }} /></Form.Item>
-                      <Form.Item name="tierUnitPrice" label="级距单价"><InputNumber style={{ width: 130 }} /></Form.Item>
+                      <Form.Item name="moldPriceTaxed" label="模具含税总(万元)"><InputNumber min={0} style={{ width: 150 }} /></Form.Item>
+                      <Form.Item name="unitPriceTotal" label="单价合计"><InputNumber min={0} style={{ width: 150 }} /></Form.Item>
+                      <Form.Item name="tierUnitPrice" label="级距单价"><InputNumber min={0} style={{ width: 130 }} /></Form.Item>
                     </Space>
                   </>
                 ),

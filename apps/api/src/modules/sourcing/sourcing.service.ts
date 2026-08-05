@@ -152,14 +152,22 @@ export const recommend = async (eventId: number) => {
   };
 };
 
-/** 標記某報價為「最優一家」（同案件其餘取消標記） */
+/** 切換某報價的「最優一家」標記：已標記則取消，未標記則設為最優（同案件其餘取消） */
 export const markBest = async (quoteId: number) => {
   const q = await prisma.sourcingQuote.findUnique({ where: { id: quoteId } });
   if (!q) throw notFound('找不到该报价');
+  if (q.isBest) {
+    // 再按一次 → 取消標記，案件回到未決
+    await prisma.$transaction([
+      prisma.sourcingQuote.update({ where: { id: quoteId }, data: { isBest: false } }),
+      prisma.sourcingEvent.update({ where: { id: q.eventId }, data: { status: 'open' } }),
+    ]);
+    return { ok: true, isBest: false };
+  }
   await prisma.$transaction([
     prisma.sourcingQuote.updateMany({ where: { eventId: q.eventId }, data: { isBest: false } }),
     prisma.sourcingQuote.update({ where: { id: quoteId }, data: { isBest: true } }),
     prisma.sourcingEvent.update({ where: { id: q.eventId }, data: { status: 'decided' } }),
   ]);
-  return { ok: true };
+  return { ok: true, isBest: true };
 };
