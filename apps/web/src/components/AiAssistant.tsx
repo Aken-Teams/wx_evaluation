@@ -1,9 +1,18 @@
 import { SendOutlined } from '@ant-design/icons';
 import { Bot } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Alert, Avatar, Button, Drawer, Empty, FloatButton, Input, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Avatar, Button, Drawer, FloatButton, Input, Space, Spin, Tag } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { aiApi, type ChatMsg } from '../api';
+import { MarkdownLite } from './MarkdownLite';
+
+const QUESTION_TEMPLATES = [
+  '本季整体评比趋势如何？',
+  '综合分排名前十的供应商有哪些？',
+  '哪些供应商需要关注或有降级风险？',
+  '各构面（品质/交期/服务）平均表现如何？',
+  '本季有哪些供应商被降级？',
+];
 
 /** 全站浮動 AI 助手：隨處可問，也可由 window 事件 'ai:ask' 帶問題開啟。 */
 export function AiAssistant() {
@@ -64,14 +73,29 @@ export function AiAssistant() {
         )}
         <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
           {messages.length === 0 ? (
-            <Empty image={<Bot size={44} color="#c3ccd9" />} description="询问供应商评分、排名、风险" style={{ marginTop: 40 }} />
+            <div style={{ marginTop: 32, textAlign: 'center' }}>
+              <Bot size={44} color="#c3ccd9" />
+              <div style={{ color: '#94a3b8', margin: '8px 0 14px', fontSize: 13 }}>试试这些问题</div>
+              <Space direction="vertical" size={8} style={{ width: '100%', padding: '0 4px' }}>
+                {QUESTION_TEMPLATES.map((t) => (
+                  <Button
+                    key={t}
+                    block
+                    onClick={() => doSend(t)}
+                    style={{ textAlign: 'left', whiteSpace: 'normal', height: 'auto', padding: '7px 12px', fontSize: 13 }}
+                  >
+                    {t}
+                  </Button>
+                ))}
+              </Space>
+            </div>
           ) : (
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               {messages.map((m, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
                   <Avatar size="small" icon={<Bot size={14} />} style={{ backgroundColor: m.role === 'user' ? '#2563eb' : '#16a34a', flexShrink: 0 }} />
-                  <div style={{ maxWidth: '78%', padding: '7px 11px', borderRadius: 10, whiteSpace: 'pre-wrap', background: m.role === 'user' ? '#1a56db' : '#f1f5f9', color: m.role === 'user' ? '#fff' : '#1e293b', fontSize: 13 }}>
-                    {m.content}
+                  <div style={{ maxWidth: '78%', padding: '7px 11px', borderRadius: 10, whiteSpace: m.role === 'user' ? 'pre-wrap' : 'normal', background: m.role === 'user' ? '#1a56db' : '#f1f5f9', color: m.role === 'user' ? '#fff' : '#1e293b', fontSize: 13 }}>
+                    {m.role === 'user' ? m.content : <MarkdownLite text={m.content} />}
                   </div>
                 </div>
               ))}

@@ -43,10 +43,16 @@ export function AppLayout() {
   const isViewer = user?.role === 'viewer';
   const [pwOpen, setPwOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem('sidebar-collapsed') === '1');
+  // 收合时初始 openKeys 为空（避免刷新自动弹出），hover 时交由 antd 经 onOpenChange 控制弹窗
+  const [openKeys, setOpenKeys] = useState<string[]>(() =>
+    localStorage.getItem('sidebar-collapsed') === '1' ? [] : ['eval', 'admin'],
+  );
   const toggleCollapsed = () =>
     setCollapsed((c) => {
-      localStorage.setItem('sidebar-collapsed', c ? '0' : '1');
-      return !c;
+      const next = !c;
+      localStorage.setItem('sidebar-collapsed', next ? '1' : '0');
+      setOpenKeys(next ? [] : ['eval', 'admin']);
+      return next;
     });
 
   const menuItems: MenuProps['items'] = useMemo(
@@ -171,7 +177,8 @@ export function AppLayout() {
             mode="inline"
             style={{ marginTop: 10, borderInlineEnd: 'none' }}
             selectedKeys={[selectedKey]}
-            defaultOpenKeys={['eval', 'admin']}
+            openKeys={openKeys}
+            onOpenChange={(keys) => setOpenKeys(keys as string[])}
             items={menuItems}
             onClick={({ key }) => {
               if (key.startsWith('/')) nav(key);

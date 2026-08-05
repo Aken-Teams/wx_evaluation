@@ -27,6 +27,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { analyticsApi, backgroundApi, sourcingApi, suppliersApi, type QuoteInput } from '../../api';
 import { GradeTag } from '../../components/GradeTag';
+import { MarkdownLite } from '../../components/MarkdownLite';
 import { PageHeader } from '../../components/PageHeader';
 import { apiErrorMessage } from '../../lib/api';
 import type { BackgroundRow, Grade, SourcingQuote, SourcingRecommendation } from '../../types';
@@ -939,7 +940,7 @@ export function SourcingPage() {
               ))}
             </div>
             {rec.ai.configured && rec.ai.reply ? (
-              <Alert type="info" showIcon icon={<Sparkles size={16} />} message="AI 说明" description={rec.ai.reply} />
+              <Alert type="info" showIcon icon={<Sparkles size={16} />} message="AI 说明" description={<MarkdownLite text={rec.ai.reply} />} />
             ) : (
               <Typography.Text type="secondary">（AI 未配置：以上为规则式综合评分建议。设定 Ollama 后将附上 AI 文字说明。）</Typography.Text>
             )}

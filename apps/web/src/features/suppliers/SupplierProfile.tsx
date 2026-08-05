@@ -1,7 +1,7 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
-import { Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import { BarChart3, CalendarCheck, Scale, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Card, Col, Descriptions, Empty, Result, Row, Space, Spin, Statistic, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Col, Descriptions, Empty, Result, Row, Space, Spin, Statistic, Table, Tabs, Tag, Typography } from 'antd';
 import { askAi } from '../../components/AiAssistant';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -111,137 +111,168 @@ export function SupplierProfile() {
         description={summary}
       />
 
-      <Row gutter={16}>
-        {/* 季度趋势 */}
-        <Col xs={24} lg={16}>
-          <Card title="季度评比趋势" variant="borderless" styles={{ body: { minHeight: 280 } }}>
-            {trendData.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[60, 100]} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="综合分" stroke="#1a56db" strokeWidth={2} connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty description="尚无季度评比资料" />
-            )}
-          </Card>
-        </Col>
-        {/* 最新构面 */}
-        <Col xs={24} lg={8}>
-          <Card
-            title="最新构面"
-            variant="borderless"
-            extra={trendDelta > 0 ? <TrendingUp size={16} color="#16a34a" /> : trendDelta < 0 ? <TrendingDown size={16} color="#dc2626" /> : null}
-            styles={{ body: { minHeight: 280 } }}
-          >
-            {scored.length ? (
-              <Descriptions column={1} size="small">
-                <Descriptions.Item label="期别">{scored[scored.length - 1]!.period}</Descriptions.Item>
-                <Descriptions.Item label="品质(70)">{scored[scored.length - 1]!.quality ?? '—'}</Descriptions.Item>
-                <Descriptions.Item label="交期(20)">{scored[scored.length - 1]!.purchase ?? '—'}</Descriptions.Item>
-                <Descriptions.Item label="服务(10)">{scored[scored.length - 1]!.service ?? '—'}</Descriptions.Item>
-                <Descriptions.Item label="综合">
-                  <b>{scored[scored.length - 1]!.assessmentScore ?? '—'}</b>
-                </Descriptions.Item>
-              </Descriptions>
-            ) : (
-              <Empty description="无资料" />
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={16}>
-        {/* 年度评鉴 */}
-        <Col xs={24} lg={12}>
-          <Card title="年度评鉴历史" variant="borderless" styles={{ body: { padding: 0 } }}>
-            <Table rowKey="year" size="small" pagination={false} columns={annualCols} dataSource={annualHistory} locale={{ emptyText: '尚无年度资料' }} />
-          </Card>
-        </Col>
-        {/* 背调 */}
-        <Col xs={24} lg={12}>
-          <Card
-            title="背调分析"
-            variant="borderless"
-            extra={latestBg && <Tag color={bgRisk === 0 ? 'green' : bgRisk <= 2 ? 'gold' : 'red'}>{bgRisk === 0 ? '正常' : bgRisk <= 2 ? '需关注' : '偏高'}</Tag>}
-          >
-            {backgroundChecks.length ? (
-              <Table
-                rowKey="id"
-                size="small"
-                pagination={false}
-                dataSource={backgroundChecks}
-                columns={[
-                  { title: '年度', dataIndex: 'year', width: 70 },
-                  { title: '拖欠货款', dataIndex: 'latePaymentCount', align: 'center' },
-                  { title: '客诉', dataIndex: 'customerComplaintCount', align: 'center' },
-                  { title: '8D', dataIndex: 'qualityAbnormal8D', align: 'center' },
-                  { title: '配合度', dataIndex: 'cooperationScore', align: 'center', render: (v) => v ?? '—' },
-                ]}
-              />
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无背调资料" />
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 历年填报明细（唯读） */}
-      <Card title="历年填报明细（唯读）" variant="borderless" styles={{ body: { padding: 0 } }}>
-        {quarterlyHistory.length ? (
-          <Table
-            rowKey="period"
-            size="small"
-            pagination={false}
-            dataSource={quarterlyHistory}
-            scroll={{ x: 1100 }}
-            columns={[
-              { title: '期别', dataIndex: 'period', fixed: 'left', width: 100 },
-              { title: '检验批数', align: 'center', width: 84, render: (_, r) => r.raw.receivedBatches },
-              { title: '退货批数', align: 'center', width: 84, render: (_, r) => r.raw.returnedBatches },
-              { title: '外部客诉', align: 'center', width: 84, render: (_, r) => r.raw.externalCAR },
-              { title: '产线CAR', align: 'center', width: 84, render: (_, r) => r.raw.arr },
-              { title: '延迟回复', align: 'center', width: 84, render: (_, r) => r.raw.untimelyResponseCCR },
-              { title: '达交率%', align: 'center', width: 84, render: (_, r) => r.raw.deliveryRate ?? '—' },
-              { title: '停线', align: 'center', width: 64, render: (_, r) => r.raw.productionLineStop },
-              { title: '特批', align: 'center', width: 64, render: (_, r) => r.raw.specialApproval },
-              { title: '品质服务', align: 'center', width: 84, render: (_, r) => r.raw.serviceQuality },
-              { title: '采购服务', align: 'center', width: 84, render: (_, r) => r.raw.servicePurchase },
-              { title: '综合', align: 'center', width: 72, fixed: 'right', render: (_, r) => <b>{r.assessmentScore ?? '—'}</b> },
-              { title: '等级', align: 'center', width: 64, fixed: 'right', render: (_, r) => <GradeTag grade={r.grade} /> },
-            ]}
-          />
-        ) : (
-          <div style={{ padding: 24 }}>
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无填报纪录" />
-          </div>
-        )}
-      </Card>
-
-      {/* 参与的比价 */}
-      <Card title="参与的比价案件" variant="borderless">
-        {sourcingParticipation.length ? (
-          <Space wrap>
-            {sourcingParticipation.map((s) => (
-              <Tag
-                key={`${s.eventId}-${s.stage}`}
-                color={s.isBest ? 'gold' : 'default'}
-                style={{ cursor: 'pointer', padding: '4px 10px' }}
-                onClick={() => nav('/sourcing')}
-              >
-                {s.eventTitle} · {s.stage === 'before' ? '议价前' : '议价后'}
-                {s.isBest && ' ★最优'}
-              </Tag>
-            ))}
-          </Space>
-        ) : (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未参与任何比价案件" />
-        )}
-      </Card>
+      <Tabs
+        defaultActiveKey="quarterly"
+        items={[
+          {
+            key: 'quarterly',
+            label: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <BarChart3 size={15} />
+                季度评比
+              </span>
+            ),
+            children: (
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <Row gutter={16}>
+                  <Col xs={24} lg={16}>
+                    <Card title="季度评比趋势" variant="borderless" styles={{ body: { minHeight: 280 } }}>
+                      {trendData.length ? (
+                        <ResponsiveContainer width="100%" height={240}>
+                          <LineChart data={trendData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                            <YAxis domain={[60, 100]} />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="综合分" stroke="#1a56db" strokeWidth={2} connectNulls />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <Empty description="尚无季度评比资料" />
+                      )}
+                    </Card>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Card
+                      title="最新构面"
+                      variant="borderless"
+                      extra={trendDelta > 0 ? <TrendingUp size={16} color="#16a34a" /> : trendDelta < 0 ? <TrendingDown size={16} color="#dc2626" /> : null}
+                      styles={{ body: { minHeight: 280 } }}
+                    >
+                      {scored.length ? (
+                        <Descriptions column={1} size="small">
+                          <Descriptions.Item label="期别">{scored[scored.length - 1]!.period}</Descriptions.Item>
+                          <Descriptions.Item label="品质(70)">{scored[scored.length - 1]!.quality ?? '—'}</Descriptions.Item>
+                          <Descriptions.Item label="交期(20)">{scored[scored.length - 1]!.purchase ?? '—'}</Descriptions.Item>
+                          <Descriptions.Item label="服务(10)">{scored[scored.length - 1]!.service ?? '—'}</Descriptions.Item>
+                          <Descriptions.Item label="综合">
+                            <b>{scored[scored.length - 1]!.assessmentScore ?? '—'}</b>
+                          </Descriptions.Item>
+                        </Descriptions>
+                      ) : (
+                        <Empty description="无资料" />
+                      )}
+                    </Card>
+                  </Col>
+                </Row>
+                <Card title="历年填报明细（唯读）" variant="borderless" styles={{ body: { padding: 0 } }}>
+                  {quarterlyHistory.length ? (
+                    <Table
+                      rowKey="period"
+                      size="small"
+                      pagination={false}
+                      dataSource={quarterlyHistory}
+                      scroll={{ x: 1100 }}
+                      columns={[
+                        { title: '期别', dataIndex: 'period', fixed: 'left', width: 100 },
+                        { title: '检验批数', align: 'center', width: 84, render: (_, r) => r.raw.receivedBatches },
+                        { title: '退货批数', align: 'center', width: 84, render: (_, r) => r.raw.returnedBatches },
+                        { title: '外部客诉', align: 'center', width: 84, render: (_, r) => r.raw.externalCAR },
+                        { title: '产线CAR', align: 'center', width: 84, render: (_, r) => r.raw.arr },
+                        { title: '延迟回复', align: 'center', width: 84, render: (_, r) => r.raw.untimelyResponseCCR },
+                        { title: '达交率%', align: 'center', width: 84, render: (_, r) => r.raw.deliveryRate ?? '—' },
+                        { title: '停线', align: 'center', width: 64, render: (_, r) => r.raw.productionLineStop },
+                        { title: '特批', align: 'center', width: 64, render: (_, r) => r.raw.specialApproval },
+                        { title: '品质服务', align: 'center', width: 84, render: (_, r) => r.raw.serviceQuality },
+                        { title: '采购服务', align: 'center', width: 84, render: (_, r) => r.raw.servicePurchase },
+                        { title: '综合', align: 'center', width: 72, fixed: 'right', render: (_, r) => <b>{r.assessmentScore ?? '—'}</b> },
+                        { title: '等级', align: 'center', width: 64, fixed: 'right', render: (_, r) => <GradeTag grade={r.grade} /> },
+                      ]}
+                    />
+                  ) : (
+                    <div style={{ padding: 24 }}>
+                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无填报纪录" />
+                    </div>
+                  )}
+                </Card>
+              </Space>
+            ),
+          },
+          {
+            key: 'annual',
+            label: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <CalendarCheck size={15} />
+                年度评鉴
+              </span>
+            ),
+            children: (
+              <Card title="年度评鉴历史" variant="borderless" styles={{ body: { padding: 0 } }}>
+                <Table rowKey="year" size="small" pagination={false} columns={annualCols} dataSource={annualHistory} locale={{ emptyText: '尚无年度资料' }} />
+              </Card>
+            ),
+          },
+          {
+            key: 'bg',
+            label: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Scale size={15} />
+                背调 · 比价
+              </span>
+            ),
+            children: (
+              <Row gutter={16}>
+                <Col xs={24} lg={12}>
+                  <Card
+                    title="背调分析"
+                    variant="borderless"
+                    extra={latestBg && <Tag color={bgRisk === 0 ? 'green' : bgRisk <= 2 ? 'gold' : 'red'}>{bgRisk === 0 ? '正常' : bgRisk <= 2 ? '需关注' : '偏高'}</Tag>}
+                  >
+                    {backgroundChecks.length ? (
+                      <Table
+                        rowKey="id"
+                        size="small"
+                        pagination={false}
+                        dataSource={backgroundChecks}
+                        columns={[
+                          { title: '年度', dataIndex: 'year', width: 70 },
+                          { title: '拖欠货款', dataIndex: 'latePaymentCount', align: 'center' },
+                          { title: '客诉', dataIndex: 'customerComplaintCount', align: 'center' },
+                          { title: '8D', dataIndex: 'qualityAbnormal8D', align: 'center' },
+                          { title: '配合度', dataIndex: 'cooperationScore', align: 'center', render: (v) => v ?? '—' },
+                        ]}
+                      />
+                    ) : (
+                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无背调资料" />
+                    )}
+                  </Card>
+                </Col>
+                <Col xs={24} lg={12}>
+                  <Card title="参与的比价案件" variant="borderless">
+                    {sourcingParticipation.length ? (
+                      <Space wrap>
+                        {sourcingParticipation.map((s) => (
+                          <Tag
+                            key={`${s.eventId}-${s.stage}`}
+                            color={s.isBest ? 'gold' : 'default'}
+                            style={{ cursor: 'pointer', padding: '4px 10px' }}
+                            onClick={() => nav('/sourcing')}
+                          >
+                            {s.eventTitle} · {s.stage === 'before' ? '议价前' : '议价后'}
+                            {s.isBest && ' ★最优'}
+                          </Tag>
+                        ))}
+                      </Space>
+                    ) : (
+                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未参与任何比价案件" />
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+            ),
+          },
+        ]}
+      />
     </Space>
   );
 }
