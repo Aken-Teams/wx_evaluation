@@ -15,6 +15,7 @@ import {
   Modal,
   Popconfirm,
   Progress,
+  Radio,
   Select,
   Space,
   Table,
@@ -37,6 +38,59 @@ const bgRiskLevel = (b: BackgroundRow | undefined) => {
   return { n, text: n === 0 ? '正常' : n <= 2 ? '关注' : '偏高', color: n === 0 ? 'green' : n <= 2 ? 'gold' : 'red' };
 };
 
+// 比价表 3 种情境模板：建立案件时选一种，系统自动带入范例列，使用者直接改数字即可
+interface QuoteTemplate {
+  label: string;
+  desc: string;
+  defaultTitle: string;
+  quotes: QuoteInput[];
+}
+const TEMPLATES = {
+  blank: { label: '空白案件', desc: '不带范例，自行新增报价', defaultTitle: '', quotes: [] },
+  same: {
+    label: '同一家 · 议价前后',
+    desc: '同一供方比议价前 / 议价后，系统自动算降幅',
+    defaultTitle: '同一家议价（如 TO-277B MAX 开模）',
+    quotes: [
+      {
+        supplierName: '供方A', stage: 'before',
+        products: [{ name: '脚架', moldPrice: 50, unitPrice: 12 }, { name: '跳线', moldPrice: 20, unitPrice: 4.5 }],
+        moldPriceTaxed: 70, unitPriceTotal: 16.5, sampleLeadTime: '70天',
+        paymentTerms: 'TT30+180承兑汇票', moldPaymentTerms: '样品验收后一次性支付模具费', priceTier: '铜价78000-79000',
+      },
+      {
+        supplierName: '供方A', stage: 'after',
+        products: [{ name: '脚架', moldPrice: 35, unitPrice: 10 }, { name: '跳线', moldPrice: 15, unitPrice: 4.5 }],
+        moldPriceTaxed: 60, unitPriceTotal: 14.5, sampleLeadTime: '55天',
+        paymentTerms: 'TT90+180承兑汇票', moldPaymentTerms: '框架&跳线交易总量各达 200KK 后返还对应模具费', priceTier: '铜价78000-79000',
+      },
+    ],
+  },
+  multiMold: {
+    label: '多供方 · 模具+产品',
+    desc: '供方 A/B/C/D 比模具费与产品单价',
+    defaultTitle: '多供方比价（模具+产品）',
+    quotes: [
+      { supplierName: '供方A', stage: 'after', products: [{ name: '脚架', moldPrice: 50, unitPrice: 12 }, { name: '跳线', moldPrice: 20, unitPrice: 4.5 }], moldPriceTaxed: 70, unitPriceTotal: 16.5, sampleLeadTime: '70天', paymentTerms: 'TT30', priceTier: '铜价78000-79000' },
+      { supplierName: '供方B', stage: 'after', products: [{ name: '脚架', moldPrice: 47, unitPrice: 11.5 }, { name: '跳线', moldPrice: 19, unitPrice: 4.5 }], moldPriceTaxed: 66, unitPriceTotal: 16, sampleLeadTime: '60天', paymentTerms: 'TT90', priceTier: '铜价78000-79000' },
+      { supplierName: '供方C', stage: 'after', products: [{ name: '脚架', moldPrice: 45, unitPrice: 11 }, { name: '跳线', moldPrice: 18, unitPrice: 4.5 }], moldPriceTaxed: 63, unitPriceTotal: 15.5, sampleLeadTime: '75天', paymentTerms: 'TT30', priceTier: '铜价78000-79000' },
+      { supplierName: '供方D', stage: 'after', products: [{ name: '脚架', moldPrice: 48, unitPrice: 11.8 }, { name: '跳线', moldPrice: 20, unitPrice: 4.5 }], moldPriceTaxed: 68, unitPriceTotal: 16.3, sampleLeadTime: '65天', paymentTerms: 'TT90', priceTier: '铜价78000-79000' },
+    ],
+  },
+  multiProduct: {
+    label: '多供方 · 仅产品',
+    desc: '供方 A/B/C 只比产品单价（无模具）',
+    defaultTitle: '多供方比价（仅产品）',
+    quotes: [
+      { supplierName: '供方A', stage: 'after', products: [{ name: '产品1', unitPrice: 12 }, { name: '产品2', unitPrice: 4.5 }], unitPriceTotal: 16.5, sampleLeadTime: '60天', priceTier: '铜价78000-79000' },
+      { supplierName: '供方B', stage: 'after', products: [{ name: '产品1', unitPrice: 11.5 }, { name: '产品2', unitPrice: 4.5 }], unitPriceTotal: 16, sampleLeadTime: '65天', priceTier: '铜价78000-79000' },
+      { supplierName: '供方C', stage: 'after', products: [{ name: '产品1', unitPrice: 11 }, { name: '产品2', unitPrice: 4.5 }], unitPriceTotal: 15.5, sampleLeadTime: '70天', priceTier: '铜价78000-79000' },
+    ],
+  },
+} satisfies Record<string, QuoteTemplate>;
+type TemplateKey = keyof typeof TEMPLATES;
+const TEMPLATE_KEYS: TemplateKey[] = ['blank', 'same', 'multiMold', 'multiProduct'];
+
 export function SourcingPage() {
   const { message } = AntApp.useApp();
   const qc = useQueryClient();
@@ -44,6 +98,7 @@ export function SourcingPage() {
   const [eventForm] = Form.useForm();
   const [quoteForm] = Form.useForm();
   const [eventModal, setEventModal] = useState(false);
+  const [template, setTemplate] = useState<TemplateKey>('blank');
   const [quoteModal, setQuoteModal] = useState(false);
   const [editingQuote, setEditingQuote] = useState<SourcingQuote | null>(null);
   const [quoteTab, setQuoteTab] = useState('price');
@@ -115,11 +170,16 @@ export function SourcingPage() {
 
   const createEvent = useMutation({
     mutationFn: (v: { title: string; itemName?: string; description?: string }) => sourcingApi.createEvent(v),
-    onSuccess: (e) => {
-      message.success('已建立案件');
+    onSuccess: async (e) => {
+      const tpl = TEMPLATES[template];
+      if (tpl?.quotes.length) {
+        await Promise.all(tpl.quotes.map((q) => sourcingApi.addQuote(e.id, q)));
+      }
+      message.success(tpl?.quotes.length ? `已建立案件并带入「${tpl.label}」范例，可直接修改` : '已建立案件');
       setEventModal(false);
       setSelected(e.id);
       qc.invalidateQueries({ queryKey: ['sourcing-events'] });
+      qc.invalidateQueries({ queryKey: ['sourcing-event', e.id] });
     },
     onError: (e) => message.error(apiErrorMessage(e)),
   });
@@ -210,6 +270,20 @@ export function SourcingPage() {
     quoteForm.setFieldsValue(q);
     setQuoteModal(true);
   };
+
+  // 合计自动加总：模具含税总 = Σ各产品模具费；单价合计 = Σ各产品未税单价
+  const autoSumTotals = () => {
+    const products = (quoteForm.getFieldValue('products') ?? []) as Array<{ moldPrice?: number | null; unitPrice?: number | null }>;
+    if (!products.length) {
+      message.info('尚无产品明细可加总（也可直接手填合计）');
+      return;
+    }
+    const moldSum = products.reduce((s, p) => s + (Number(p?.moldPrice) || 0), 0);
+    const unitSum = products.reduce((s, p) => s + (Number(p?.unitPrice) || 0), 0);
+    quoteForm.setFieldsValue({ moldPriceTaxed: moldSum || null, unitPriceTotal: Number(unitSum.toFixed(4)) || null });
+    message.success('已按产品明细自动加总');
+  };
+
 
   // 價差浮動比例：各家 vs 最低價（決策用）
   const eventQuotes = detailQuery.data?.quotes ?? [];
@@ -376,7 +450,7 @@ export function SourcingPage() {
         title="比价寻源"
         subtitle="多供应商报价比对 · 背调风险 · AI 择优建议"
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { eventForm.resetFields(); setEventModal(true); }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { eventForm.resetFields(); setTemplate('blank'); setEventModal(true); }}>
             新增比价案件
           </Button>
         }
@@ -500,14 +574,44 @@ export function SourcingPage() {
         destroyOnClose
       >
         <Form form={eventForm} layout="vertical" onFinish={(v) => createEvent.mutate(v)} style={{ marginTop: 12 }}>
+          <Form.Item label="选择模板（对照比价表 3 种情境，建立后可直接改数字）">
+            <Radio.Group
+              value={template}
+              onChange={(e) => {
+                const key = e.target.value as TemplateKey;
+                setTemplate(key);
+                if (key !== 'blank' && !eventForm.getFieldValue('title')) {
+                  eventForm.setFieldsValue({ title: TEMPLATES[key].defaultTitle });
+                }
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}
+            >
+              {TEMPLATE_KEYS.map((k) => (
+                <Radio
+                  key={k}
+                  value={k}
+                  style={{
+                    border: `1px solid ${template === k ? '#2563eb' : '#e5e7eb'}`,
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    margin: 0,
+                    background: template === k ? '#eff6ff' : '#fff',
+                  }}
+                >
+                  <b>{TEMPLATES[k].label}</b>
+                  <span style={{ color: '#94a3b8', fontSize: 12, marginLeft: 8 }}>{TEMPLATES[k].desc}</span>
+                </Radio>
+              ))}
+            </Radio.Group>
+          </Form.Item>
           <Form.Item name="title" label="案件名称" rules={[{ required: true, message: '请输入案件名称' }]}>
             <Input placeholder="例：TO-277B MAX 开模" />
           </Form.Item>
           <Form.Item name="itemName" label="品项">
-            <Input />
+            <Input placeholder="选填" />
           </Form.Item>
           <Form.Item name="description" label="说明">
-            <Input.TextArea rows={2} />
+            <Input.TextArea rows={2} placeholder="选填" />
           </Form.Item>
         </Form>
       </Modal>
@@ -620,6 +724,12 @@ export function SourcingPage() {
                         </div>
                       )}
                     </Form.List>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <Typography.Text strong>合计</Typography.Text>
+                      <Button size="small" type="link" style={{ padding: 0 }} onClick={autoSumTotals}>
+                        从产品明细自动加总
+                      </Button>
+                    </div>
                     <Space style={{ width: '100%' }} size={12} wrap>
                       <Form.Item name="moldPriceTaxed" label="模具含税总(万元)"><InputNumber min={0} style={{ width: 150 }} /></Form.Item>
                       <Form.Item name="unitPriceTotal" label="单价合计"><InputNumber min={0} style={{ width: 150 }} /></Form.Item>
