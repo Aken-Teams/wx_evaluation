@@ -14,13 +14,27 @@ const QUESTION_TEMPLATES = [
   '本季有哪些供应商被降级？',
 ];
 
-// 接续追问的小范本（回覆后显示，供参考）
+// AI 未给出动态追问时的兜底范本
 const FOLLOWUP_TEMPLATES = [
   '这几家的背调风险如何？',
   '只看 A 级的',
   '按品质分再排序',
   '帮我总结成 3 点',
 ];
+
+/** 拆出正文与「动态追问」：AI 在结尾用 %%FOLLOWUPS%% 标记附上与上下文相关的追问 */
+function parseReply(content: string): { body: string; followups: string[] } {
+  const idx = content.indexOf('%%FOLLOWUPS%%');
+  if (idx === -1) return { body: content, followups: [] };
+  const body = content.slice(0, idx).trim();
+  const followups = content
+    .slice(idx + '%%FOLLOWUPS%%'.length)
+    .split('\n')
+    .map((l) => l.replace(/^[-*·•\d.、)\s]+/, '').trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  return { body, followups };
+}
 
 /** 全站浮動 AI 助手：隨處可問，也可由 window 事件 'ai:ask' 帶問題開啟。 */
 export function AiAssistant() {
@@ -103,26 +117,32 @@ export function AiAssistant() {
                 <div key={i} style={{ display: 'flex', gap: 8, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
                   <Avatar size="small" icon={<Bot size={14} />} style={{ backgroundColor: m.role === 'user' ? '#2563eb' : '#16a34a', flexShrink: 0 }} />
                   <div style={{ maxWidth: '78%', padding: '7px 11px', borderRadius: 10, whiteSpace: m.role === 'user' ? 'pre-wrap' : 'normal', background: m.role === 'user' ? '#1a56db' : '#f1f5f9', color: m.role === 'user' ? '#fff' : '#1e293b', fontSize: 13 }}>
-                    {m.role === 'user' ? m.content : <MarkdownLite text={m.content} />}
+                    {m.role === 'user' ? m.content : <MarkdownLite text={parseReply(m.content).body} />}
                   </div>
                 </div>
               ))}
               {send.isPending && <Spin size="small" style={{ marginLeft: 8 }} />}
-              {!send.isPending && messages[messages.length - 1]?.role === 'assistant' && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingInlineStart: 32 }}>
-                  <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>追问：</span>
-                  {FOLLOWUP_TEMPLATES.map((t) => (
-                    <Tag
-                      key={t}
-                      color="blue"
-                      style={{ cursor: 'pointer', margin: 0, borderRadius: 12, padding: '2px 10px' }}
-                      onClick={() => doSend(t)}
-                    >
-                      {t}
-                    </Tag>
-                  ))}
-                </div>
-              )}
+              {!send.isPending &&
+                messages[messages.length - 1]?.role === 'assistant' &&
+                (() => {
+                  const dyn = parseReply(messages[messages.length - 1]!.content).followups;
+                  const list = dyn.length ? dyn : FOLLOWUP_TEMPLATES;
+                  return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingInlineStart: 32 }}>
+                      <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>追问：</span>
+                      {list.map((t) => (
+                        <Tag
+                          key={t}
+                          color="blue"
+                          style={{ cursor: 'pointer', margin: 0, borderRadius: 12, padding: '2px 10px', whiteSpace: 'normal' }}
+                          onClick={() => doSend(t)}
+                        >
+                          {t}
+                        </Tag>
+                      ))}
+                    </div>
+                  );
+                })()}
             </Space>
           )}
         </div>
