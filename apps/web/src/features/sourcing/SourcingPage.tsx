@@ -646,6 +646,7 @@ export function SourcingPage() {
               )}
               <Table<SourcingQuote>
                 rowKey="id"
+                bordered
                 columns={quoteColumns}
                 dataSource={detail.quotes}
                 size="small"

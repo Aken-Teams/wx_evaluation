@@ -38,31 +38,43 @@ export interface ChatMessage {
   content: string;
 }
 
+const buildHeaders = (): Record<string, string> => ({
+  'Content-Type': 'application/json',
+  // Cloudflare 会以浏览器指纹(1010)拦截默认 UA（Node/undici、python-urllib 等），需伪装
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+  ...(env.OLLAMA_API_KEY ? { Authorization: `Bearer ${env.OLLAMA_API_KEY}` } : {}),
+});
+
+/**
+ * 调用 OpenAI 相容 chat completions。
+ * 针对 thinking 模型（如 gemma4）：max_tokens 需较大，content 可能为空时 fallback 到 reasoning。
+ */
+const callCompletions = async (messages: ChatMessage[]): Promise<string> => {
+  const payload = { model: env.OLLAMA_MODEL || 'llama3.2', stream: false, max_tokens: 1500, messages };
+  const resp = await fetch(`${env.OLLAMA_API_URL}/v1/chat/completions`, {
+    method: 'POST',
+    headers: buildHeaders(),
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = (await resp.json()) as {
+    choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
+    message?: { content?: string; reasoning?: string };
+  };
+  const m = data.choices?.[0]?.message ?? data.message;
+  return (m?.content || m?.reasoning || '').trim();
+};
+
 /** 通用完成：給定 system + user 提示，回傳 AI 回覆（未設定則 configured=false）。 */
 export const complete = async (system: string, user: string): Promise<{ configured: boolean; reply: string }> => {
   if (!isConfigured()) return { configured: false, reply: '' };
-  const payload = {
-    model: env.OLLAMA_MODEL || 'llama3.2',
-    stream: false,
-    max_tokens: 800,
-    messages: [
+  try {
+    const reply = await callCompletions([
       { role: 'system', content: system },
       { role: 'user', content: user },
-    ],
-  };
-  try {
-    const resp = await fetch(`${env.OLLAMA_API_URL}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(env.OLLAMA_API_KEY ? { Authorization: `Bearer ${env.OLLAMA_API_KEY}` } : {}),
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!resp.ok) return { configured: true, reply: `AI 服务返回错误（HTTP ${resp.status}）。` };
-    const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }>; message?: { content?: string } };
-    return { configured: true, reply: data.choices?.[0]?.message?.content || data.message?.content || '' };
+    ]);
+    return { configured: true, reply: reply || '（AI 无回应内容）' };
   } catch (e) {
     return { configured: true, reply: `AI 服务暂时无法连接：${e instanceof Error ? e.message : '未知错误'}` };
   }
@@ -77,30 +89,12 @@ export const chat = async (messages: ChatMessage[]): Promise<{ configured: boole
   }
 
   const context = await buildContext();
-  const payload = {
-    model: env.OLLAMA_MODEL || 'llama3.2',
-    stream: false,
-    max_tokens: 1000,
-    messages: [{ role: 'system', content: `${SYSTEM_PROMPT}\n\n【当前数据】${context}` }, ...messages],
-  };
-
   try {
-    const resp = await fetch(`${env.OLLAMA_API_URL}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(env.OLLAMA_API_KEY ? { Authorization: `Bearer ${env.OLLAMA_API_KEY}` } : {}),
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!resp.ok) return { configured: true, reply: `AI 服务返回错误（HTTP ${resp.status}）。` };
-    const data = (await resp.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      message?: { content?: string };
-    };
-    const reply = data.choices?.[0]?.message?.content || data.message?.content || '（AI 无回应内容）';
-    return { configured: true, reply };
+    const reply = await callCompletions([
+      { role: 'system', content: `${SYSTEM_PROMPT}\n\n【当前数据】${context}` },
+      ...messages,
+    ]);
+    return { configured: true, reply: reply || '（AI 无回应内容）' };
   } catch (e) {
     return { configured: true, reply: `AI 服务暂时无法连接：${e instanceof Error ? e.message : '未知错误'}` };
   }
