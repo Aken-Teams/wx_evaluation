@@ -1,5 +1,5 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
-import { Download, Scale, Sparkles } from 'lucide-react';
+import { ArrowLeft, Download, Scale, Sparkles, Trophy } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -11,11 +11,11 @@ import {
   Form,
   Input,
   InputNumber,
-  List,
   Modal,
   Popconfirm,
   Progress,
   Radio,
+  Segmented,
   Select,
   Space,
   Table,
@@ -37,6 +37,9 @@ const bgRiskLevel = (b: BackgroundRow | undefined) => {
   const n = b.latePaymentCount + b.customerComplaintCount + b.qualityAbnormal8D;
   return { n, text: n === 0 ? '正常' : n <= 2 ? '关注' : '偏高', color: n === 0 ? 'green' : n <= 2 ? 'gold' : 'red' };
 };
+
+// 表格单元格保留换行（数据里的 \n 显示为换行，而非并成空白）
+const preLine = (v: string | null | undefined) => <div style={{ whiteSpace: 'pre-line' }}>{v || '—'}</div>;
 
 // 比价表 3 种情境模板：建立案件时选一种，系统自动带入范例列，使用者直接改数字即可
 interface QuoteTemplate {
@@ -99,14 +102,22 @@ export function SourcingPage() {
   const [quoteForm] = Form.useForm();
   const [eventModal, setEventModal] = useState(false);
   const [template, setTemplate] = useState<TemplateKey>('blank');
+  const [eventKeyword, setEventKeyword] = useState('');
+  const [eventStatus, setEventStatus] = useState<'all' | 'open' | 'decided'>('all');
   const [quoteModal, setQuoteModal] = useState(false);
   const [editingQuote, setEditingQuote] = useState<SourcingQuote | null>(null);
   const [quoteTab, setQuoteTab] = useState('price');
 
   const eventsQuery = useQuery({ queryKey: ['sourcing-events'], queryFn: sourcingApi.listEvents });
-  useEffect(() => {
-    if (selected === null && eventsQuery.data?.length) setSelected(eventsQuery.data[0]!.id);
-  }, [selected, eventsQuery.data]);
+  // 案件列表：搜索 + 状态筛选（排序交给 Table 内建 sorter）
+  const filteredEvents = useMemo(() => {
+    const k = eventKeyword.trim().toLowerCase();
+    return (eventsQuery.data ?? []).filter((e) => {
+      if (eventStatus !== 'all' && e.status !== eventStatus) return false;
+      if (k && !(e.title.toLowerCase().includes(k) || (e.itemName ?? '').toLowerCase().includes(k))) return false;
+      return true;
+    });
+  }, [eventsQuery.data, eventKeyword, eventStatus]);
 
   const detailQuery = useQuery({
     queryKey: ['sourcing-event', selected],
@@ -309,6 +320,15 @@ export function SourcingPage() {
         </Space>
       ),
     },
+    {
+      title: '评级',
+      width: 66,
+      align: 'center',
+      render: (_, q) => {
+        const g = profileByName(q.supplierName)?.grade;
+        return g ? <GradeTag grade={g} /> : <Tag>—</Tag>;
+      },
+    },
     { title: '阶段', dataIndex: 'stage', width: 76, render: (s: string) => <Tag>{s === 'before' ? '议价前' : '议价后'}</Tag> },
     {
       title: '产品明细',
@@ -327,47 +347,53 @@ export function SourcingPage() {
         ),
     },
     {
-      title: '模具含税(万)',
-      dataIndex: 'moldPriceTaxed',
-      width: 100,
-      align: 'right',
-      render: (v: number | null) => (v == null ? '—' : <span style={{ color: v === minMold ? '#0e9f6e' : undefined, fontWeight: v === minMold ? 700 : 400 }}>{v}</span>),
-    },
-    { title: '模具价差', width: 84, align: 'right', render: (_, q) => fluctuation(q.moldPriceTaxed, minMold) },
-    {
-      title: '单价合计',
-      dataIndex: 'unitPriceTotal',
-      width: 90,
-      align: 'right',
-      render: (v: number | null) => (v == null ? '—' : <span style={{ color: v === minUnit ? '#0e9f6e' : undefined, fontWeight: v === minUnit ? 700 : 400 }}>{v}</span>),
-    },
-    { title: '单价价差', width: 84, align: 'right', render: (_, q) => fluctuation(q.unitPriceTotal, minUnit) },
-    { title: '级距单价', dataIndex: 'tierUnitPrice', width: 84, align: 'right', render: (v) => v ?? '—' },
-    {
-      title: '评级',
-      width: 66,
-      align: 'center',
-      render: (_, q) => {
-        const g = profileByName(q.supplierName)?.grade;
-        return g ? <GradeTag grade={g} /> : <Tag>—</Tag>;
-      },
+      title: '开发模具品项（含税/万元）',
+      children: [
+        {
+          title: '模具含税(万)',
+          dataIndex: 'moldPriceTaxed',
+          width: 100,
+          align: 'right',
+          render: (v: number | null) => (v == null ? '—' : <span style={{ color: v === minMold ? '#0e9f6e' : undefined, fontWeight: v === minMold ? 700 : 400 }}>{v}</span>),
+        },
+        { title: '模具价差', width: 84, align: 'right', render: (_, q) => fluctuation(q.moldPriceTaxed, minMold) },
+        { title: '样品交期', dataIndex: 'sampleLeadTime', width: 90 },
+        { title: '账期', dataIndex: 'paymentTerms', width: 150, render: preLine },
+        { title: '模具款条件', dataIndex: 'moldPaymentTerms', width: 180, render: preLine },
+      ],
     },
     {
-      title: '背调风险',
-      width: 88,
-      align: 'center',
-      render: (_, q) => {
-        const r = bgByName(q.supplierName);
-        return r ? <Tag color={r.color}>{r.text}</Tag> : <Tag>—</Tag>;
-      },
+      title: '涉及具体产品（未税单价 元/K）',
+      children: [
+        {
+          title: '单价合计',
+          dataIndex: 'unitPriceTotal',
+          width: 90,
+          align: 'right',
+          render: (v: number | null) => (v == null ? '—' : <span style={{ color: v === minUnit ? '#0e9f6e' : undefined, fontWeight: v === minUnit ? 700 : 400 }}>{v}</span>),
+        },
+        { title: '单价价差', width: 84, align: 'right', render: (_, q) => fluctuation(q.unitPriceTotal, minUnit) },
+        { title: '级距单价', dataIndex: 'tierUnitPrice', width: 84, align: 'right', render: (v) => v ?? '—' },
+        { title: '交货周期', dataIndex: 'deliveryCycle', width: 100 },
+        { title: '金属级距', dataIndex: 'priceTier', width: 140, render: preLine },
+      ],
     },
-    { title: '样品交期', dataIndex: 'sampleLeadTime', width: 90 },
-    { title: '交货周期', dataIndex: 'deliveryCycle', width: 100 },
-    { title: '账期', dataIndex: 'paymentTerms', width: 150 },
-    { title: '模具款条件', dataIndex: 'moldPaymentTerms', width: 180 },
-    { title: '金属级距', dataIndex: 'priceTier', width: 140 },
-    { title: '背调信息', dataIndex: 'backgroundInfo', width: 200 },
-    { title: '综合评估', dataIndex: 'evaluation', width: 200 },
+    {
+      title: '背调与评估',
+      children: [
+        {
+          title: '背调风险',
+          width: 88,
+          align: 'center',
+          render: (_, q) => {
+            const r = bgByName(q.supplierName);
+            return r ? <Tag color={r.color}>{r.text}</Tag> : <Tag>—</Tag>;
+          },
+        },
+        { title: '本案备注', dataIndex: 'backgroundInfo', width: 220, render: preLine },
+        { title: '综合评估', dataIndex: 'evaluation', width: 200, render: preLine },
+      ],
+    },
     {
       title: '操作',
       fixed: 'right',
@@ -387,6 +413,34 @@ export function SourcingPage() {
           </Popconfirm>
         </Space>
       ),
+    },
+  ];
+
+  const caseColumns: ColumnsType<(typeof filteredEvents)[number]> = [
+    {
+      title: '案件名称',
+      dataIndex: 'title',
+      sorter: (a, b) => a.title.localeCompare(b.title),
+      render: (t: string, e) => (
+        <div>
+          <b>{t}</b>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>{e.itemName || '—'}</div>
+        </div>
+      ),
+    },
+    {
+      title: '报价数',
+      width: 84,
+      align: 'center',
+      sorter: (a, b) => (a._count?.quotes ?? 0) - (b._count?.quotes ?? 0),
+      render: (_: unknown, e) => e._count?.quotes ?? 0,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      align: 'center',
+      render: (s: string) => <Tag color={s === 'decided' ? 'success' : 'processing'}>{s === 'decided' ? '已决' : '进行'}</Tag>,
     },
   ];
 
@@ -457,43 +511,63 @@ export function SourcingPage() {
       />
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-        <Card variant="borderless" style={{ width: 280, flexShrink: 0 }} styles={{ body: { padding: 8 } }} title="案件列表">
-          <List
+        {selected == null && (
+        <Card
+          variant="borderless"
+          style={{ flex: 1, minWidth: 0 }}
+          styles={{ body: { padding: 12 } }}
+          title="案件列表"
+        >
+          <Space style={{ width: '100%', marginBottom: 12 }} wrap size={8}>
+            <Input.Search
+              placeholder="搜索案件名称 / 品项"
+              allowClear
+              style={{ width: 220 }}
+              onChange={(e) => setEventKeyword(e.target.value)}
+            />
+            <Segmented
+              value={eventStatus}
+              onChange={(v) => setEventStatus(v as 'all' | 'open' | 'decided')}
+              options={[
+                { value: 'all', label: '全部' },
+                { value: 'open', label: '进行中' },
+                { value: 'decided', label: '已决' },
+              ]}
+            />
+          </Space>
+          <Table
             size="small"
+            rowKey="id"
             loading={eventsQuery.isLoading}
-            dataSource={eventsQuery.data ?? []}
-            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无案件" /> }}
-            renderItem={(e) => (
-              <List.Item
-                onClick={() => setSelected(e.id)}
-                style={{
-                  cursor: 'pointer',
-                  padding: '8px 10px',
-                  borderRadius: 6,
-                  background: e.id === selected ? '#eaf1fe' : undefined,
-                }}
-              >
-                <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                  <Space style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <b>{e.title}</b>
-                    <Tag color={e.status === 'decided' ? 'success' : 'processing'}>
-                      {e.status === 'decided' ? '已决' : '进行'}
-                    </Tag>
-                  </Space>
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {e.itemName || '—'} · {e._count?.quotes ?? 0} 家报价
-                  </Typography.Text>
-                </Space>
-              </List.Item>
-            )}
+            dataSource={filteredEvents}
+            columns={caseColumns}
+            pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true, showSizeChanger: false }}
+            onRow={(e) => ({
+              onClick: () => {
+                setSelected(e.id);
+                setRec(null);
+              },
+              style: { cursor: 'pointer' },
+            })}
+            rowClassName={(e) => (e.id === selected ? 'ant-table-row-selected' : '')}
+            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={eventKeyword || eventStatus !== 'all' ? '无匹配案件' : '尚无案件'} /> }}
           />
         </Card>
+        )}
 
+        {selected != null && (
         <Card
           variant="borderless"
           style={{ flex: 1, minWidth: 0 }}
           styles={{ body: { padding: detail ? 0 : 24 } }}
-          title={detail ? `${detail.title} · 报价比较` : '案件详情'}
+          title={
+            <Space>
+              <Button type="text" icon={<ArrowLeft size={16} />} onClick={() => { setSelected(null); setRec(null); }}>
+                返回列表
+              </Button>
+              <span>{detail ? `${detail.title} · 报价比较` : '案件详情'}</span>
+            </Space>
+          }
           extra={
             detail && (
               <Space>
@@ -530,6 +604,28 @@ export function SourcingPage() {
             <Empty description="请从左侧选择或新增案件" />
           ) : (
             <>
+              {detail.quotes.length > 0 && (() => {
+                const best = detail.quotes.find((q) => q.isBest);
+                return (
+                  <div style={{ padding: '6px 16px', borderBottom: '1px solid #f0f0f0', background: best ? '#fffbeb' : '#fafafa', fontSize: 13 }}>
+                    <Space size={6} wrap>
+                      <Trophy size={14} color="#d97706" style={{ verticalAlign: '-2px' }} />
+                      <b>最优决策</b>
+                      {best ? (
+                        <span>
+                          <b>{best.supplierName}</b>
+                          {best.evaluation && <span style={{ color: '#64748b' }}> · {best.evaluation}</span>}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#94a3b8' }}>尚未选定，点「建议最优」或 ★ 标记一家</span>
+                      )}
+                      {rec?.ruleBased && (
+                        <span style={{ color: '#475569' }}>· 建议 <b>{rec.ruleBased.recommendedName}</b></span>
+                      )}
+                    </Space>
+                  </div>
+                );
+              })()}
               {negotiationPairs.length > 0 && (
                 <div style={{ padding: '10px 16px', borderBottom: '1px solid #f0f0f0', background: '#f8fafc' }}>
                   <Space wrap>
@@ -560,6 +656,7 @@ export function SourcingPage() {
             </>
           )}
         </Card>
+        )}
       </div>
 
       {/* 新增案件 */}
@@ -572,6 +669,8 @@ export function SourcingPage() {
         okText="建立"
         cancelText="取消"
         destroyOnClose
+        style={{ top: 24 }}
+        styles={{ body: { maxHeight: '68vh', overflowY: 'auto', paddingRight: 6 } }}
       >
         <Form form={eventForm} layout="vertical" onFinish={(v) => createEvent.mutate(v)} style={{ marginTop: 12 }}>
           <Form.Item label="选择模板（对照比价表 3 种情境，建立后可直接改数字）">
@@ -604,6 +703,11 @@ export function SourcingPage() {
               ))}
             </Radio.Group>
           </Form.Item>
+          <div style={{ marginTop: -8, marginBottom: 14, fontSize: 12, color: '#2563eb' }}>
+            {template === 'blank'
+              ? '· 建立空白案件，之后自行「新增报价」'
+              : `· 建立后自动带入 ${TEMPLATES[template].quotes.length} 笔范例报价，可直接改数字`}
+          </div>
           <Form.Item name="title" label="案件名称" rules={[{ required: true, message: '请输入案件名称' }]}>
             <Input placeholder="例：TO-277B MAX 开模" />
           </Form.Item>
