@@ -1,7 +1,8 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BarChart3, CalendarCheck, Scale, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Card, Col, Descriptions, Empty, Result, Row, Space, Spin, Statistic, Table, Tabs, Tag, Typography } from 'antd';
+import { useState } from 'react';
+import { Alert, Button, Card, Col, Descriptions, Empty, Input, Result, Row, Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Typography } from 'antd';
 import { askAi } from '../../components/AiAssistant';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -14,6 +15,9 @@ export function SupplierProfile() {
   const { id } = useParams();
   const nav = useNavigate();
   const vendorId = Number(id);
+  // 比价案件筛选（案件多时便于查找）
+  const [sourcingQuery, setSourcingQuery] = useState('');
+  const [sourcingBest, setSourcingBest] = useState<'all' | 'best'>('all');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['supplier-profile', vendorId],
@@ -235,11 +239,23 @@ export function SupplierProfile() {
                         pagination={false}
                         dataSource={backgroundChecks}
                         columns={[
-                          { title: '年度', dataIndex: 'year', width: 70 },
-                          { title: '拖欠货款', dataIndex: 'latePaymentCount', align: 'center' },
-                          { title: '客诉', dataIndex: 'customerComplaintCount', align: 'center' },
-                          { title: '8D', dataIndex: 'qualityAbnormal8D', align: 'center' },
-                          { title: '配合度', dataIndex: 'cooperationScore', align: 'center', render: (v) => v ?? '—' },
+                          { title: '年度', dataIndex: 'year', width: 64 },
+                          { title: '拖欠货款', dataIndex: 'latePaymentCount', align: 'center', width: 84 },
+                          { title: '客诉', dataIndex: 'customerComplaintCount', align: 'center', width: 64 },
+                          { title: '8D', dataIndex: 'qualityAbnormal8D', align: 'center', width: 56 },
+                          { title: '配合度', dataIndex: 'cooperationScore', align: 'center', width: 72, render: (v) => v ?? '—' },
+                          {
+                            title: '其他背调',
+                            dataIndex: 'notes',
+                            render: (v: string | null) =>
+                              v ? (
+                                <Typography.Text style={{ maxWidth: 180 }} ellipsis={{ tooltip: v }}>
+                                  {v}
+                                </Typography.Text>
+                              ) : (
+                                <span style={{ color: '#bbb' }}>—</span>
+                              ),
+                          },
                         ]}
                       />
                     ) : (
@@ -248,21 +264,72 @@ export function SupplierProfile() {
                   </Card>
                 </Col>
                 <Col xs={24} lg={12}>
-                  <Card title="参与的比价案件" variant="borderless">
+                  <Card
+                    title={`参与的比价案件${sourcingParticipation.length ? `（${sourcingParticipation.length}）` : ''}`}
+                    variant="borderless"
+                    extra={
+                      sourcingParticipation.length ? (
+                        <Space size={8}>
+                          <Input.Search
+                            allowClear
+                            size="small"
+                            placeholder="搜索案件名称"
+                            style={{ width: 150 }}
+                            onChange={(e) => setSourcingQuery(e.target.value)}
+                          />
+                          <Segmented
+                            size="small"
+                            value={sourcingBest}
+                            onChange={(v) => setSourcingBest(v as 'all' | 'best')}
+                            options={[
+                              { label: '全部', value: 'all' },
+                              { label: '仅最优', value: 'best' },
+                            ]}
+                          />
+                        </Space>
+                      ) : null
+                    }
+                  >
                     {sourcingParticipation.length ? (
-                      <Space wrap>
-                        {sourcingParticipation.map((s) => (
-                          <Tag
-                            key={`${s.eventId}-${s.stage}`}
-                            color={s.isBest ? 'gold' : 'default'}
-                            style={{ cursor: 'pointer', padding: '4px 10px' }}
-                            onClick={() => nav('/sourcing')}
-                          >
-                            {s.eventTitle} · {s.stage === 'before' ? '议价前' : '议价后'}
-                            {s.isBest && ' ★最优'}
-                          </Tag>
-                        ))}
-                      </Space>
+                      (() => {
+                        const q = sourcingQuery.trim().toLowerCase();
+                        const rows = sourcingParticipation.filter(
+                          (s) => (sourcingBest === 'all' || s.isBest) && (!q || s.eventTitle.toLowerCase().includes(q)),
+                        );
+                        return (
+                          <Table
+                            rowKey={(r) => `${r.eventId}-${r.stage}`}
+                            size="small"
+                            dataSource={rows}
+                            pagination={rows.length > 6 ? { pageSize: 6, size: 'small' } : false}
+                            locale={{ emptyText: '无符合条件的案件' }}
+                            onRow={() => ({ onClick: () => nav('/sourcing'), style: { cursor: 'pointer' } })}
+                            columns={[
+                              { title: '案件名称', dataIndex: 'eventTitle', ellipsis: true },
+                              {
+                                title: '阶段',
+                                dataIndex: 'stage',
+                                width: 84,
+                                align: 'center',
+                                filters: [
+                                  { text: '议价前', value: 'before' },
+                                  { text: '议价后', value: 'after' },
+                                ],
+                                onFilter: (val, r) => r.stage === val,
+                                render: (v: string) => <Tag>{v === 'before' ? '议价前' : '议价后'}</Tag>,
+                              },
+                              {
+                                title: '最优',
+                                dataIndex: 'isBest',
+                                width: 76,
+                                align: 'center',
+                                render: (v: boolean) =>
+                                  v ? <Tag color="gold">★ 最优</Tag> : <span style={{ color: '#bbb' }}>—</span>,
+                              },
+                            ]}
+                          />
+                        );
+                      })()
                     ) : (
                       <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未参与任何比价案件" />
                     )}
