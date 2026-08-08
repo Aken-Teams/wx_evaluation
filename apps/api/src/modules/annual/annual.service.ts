@@ -1,4 +1,5 @@
 import { evaluateAnnual } from '@wx/scoring';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../db/prisma';
 import { notFound } from '../../lib/httpError';
 
@@ -87,23 +88,19 @@ export const saveAnnual = async (year: number, items: AnnualItemInput[]) => {
   const known = new Set(existing.map((v) => v.id));
   for (const id of vendorIds) if (!known.has(id)) throw notFound(`供應商 id=${id} 不存在`);
 
-  return prisma.$transaction(
-    items.map((item) => {
-      const data = {
-        VDA: item.VDA,
-        QSA: item.QSA,
-        QPA: item.QPA,
-        HSF: item.HSF,
-        CSR: item.CSR,
-        others: item.others,
-        nextYearAuditType: item.nextYearAuditType ?? null,
-        remarks: item.remarks ?? null,
-      };
-      return prisma.sQMVQMAnnualInput.upsert({
-        where: { year_vendorId: { year, vendorId: item.vendorId } },
-        create: { year, vendorId: item.vendorId, ...data },
-        update: data,
-      });
-    }),
+  // 單條批量 upsert（1 次 DB 來回）——取代逐筆 upsert，避免經跳板 N 次來回逾時。
+  const rows = items.map(
+    (item) =>
+      Prisma.sql`(${year}, ${item.vendorId}, ${item.VDA}, ${item.QSA}, ${item.QPA}, ${item.HSF}, ${item.CSR}, ${item.others}, ${item.nextYearAuditType ?? null}, ${item.remarks ?? null}, NOW(3), NOW(3))`,
   );
+  await prisma.$executeRaw`
+    INSERT INTO va_SQMVQMAnnualInput
+      (year, vendorId, VDA, QSA, QPA, HSF, CSR, others, nextYearAuditType, remarks, createdAt, updatedAt)
+    VALUES ${Prisma.join(rows)}
+    ON DUPLICATE KEY UPDATE
+      VDA = VALUES(VDA), QSA = VALUES(QSA), QPA = VALUES(QPA), HSF = VALUES(HSF), CSR = VALUES(CSR),
+      others = VALUES(others), nextYearAuditType = VALUES(nextYearAuditType), remarks = VALUES(remarks),
+      updatedAt = NOW(3)
+  `;
+  return { count: items.length };
 };

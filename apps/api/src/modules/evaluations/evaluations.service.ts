@@ -1,5 +1,6 @@
 import { evaluateQuarter, isAUVendor } from '@wx/scoring';
 import type { QuarterlyInput } from '@wx/scoring';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../db/prisma';
 import { notFound } from '../../lib/httpError';
 import { getConfig } from '../scoring-config/scoring-config.service';
@@ -109,42 +110,30 @@ export const saveQuarterly = async (year: number, quarter: Quarter, items: Evalu
     if (!vendorMap.has(id)) throw notFound(`供應商 id=${id} 不存在`);
   }
 
-  return prisma.$transaction(
-    items.map((item) => {
-      const vendor = vendorMap.get(item.vendorId)!;
-      const isAU = isAUVendor(vendor.isAU);
-      const score = evaluateQuarter(toScoringInput(item, isAU), cfg);
+  // 單條批量 upsert（1 次 DB 來回）——分數仍由引擎重算，取代逐筆 upsert，避免經跳板 N 次來回逾時。
+  const rows = items.map((item) => {
+    const vendor = vendorMap.get(item.vendorId)!;
+    const isAU = isAUVendor(vendor.isAU);
+    const score = evaluateQuarter(toScoringInput(item, isAU), cfg);
+    return Prisma.sql`(${year}, ${quarter}, ${item.vendorId}, ${item.receivedQuantity}, ${item.returnedQuantity}, ${item.receivedBatches}, ${item.returnedBatches}, ${item.arr}, ${item.lrr}, ${item.externalCAR}, ${item.untimelyResponseCCR}, ${item.others}, ${item.serviceQuality}, ${item.lateDelivery}, ${item.deliveryRate}, ${item.specialApproval}, ${item.productionLineStop}, ${item.excessFreight}, ${item.servicePurchase}, ${item.remarks ?? null}, ${score.quality?.carScore ?? null}, ${score.quality?.qualityScore ?? null}, ${score.purchase?.purchaseScore ?? null}, ${score.assessmentScore}, NOW(3), NOW(3))`;
+  });
 
-      const data = {
-        receivedQuantity: item.receivedQuantity,
-        returnedQuantity: item.returnedQuantity,
-        receivedBatches: item.receivedBatches,
-        returnedBatches: item.returnedBatches,
-        arr: item.arr,
-        lrr: item.lrr,
-        externalCAR: item.externalCAR,
-        untimelyResponseCCR: item.untimelyResponseCCR,
-        others: item.others,
-        serviceQuality: item.serviceQuality,
-        lateDelivery: item.lateDelivery,
-        deliveryRate: item.deliveryRate,
-        specialApproval: item.specialApproval,
-        productionLineStop: item.productionLineStop,
-        excessFreight: item.excessFreight,
-        servicePurchase: item.servicePurchase,
-        remarks: item.remarks ?? null,
-        // 引擎計算結果（單一真相來源）
-        totalBaseScoreB: score.quality?.carScore ?? null,
-        qualityAssessmentScoreC1: score.quality?.qualityScore ?? null,
-        totalPurchaseAssessmentScoreA: score.purchase?.purchaseScore ?? null,
-        assessmentScore: score.assessmentScore,
-      };
-
-      return prisma.sQMVQMMonthlyReport.upsert({
-        where: { year_quarter_vendorId: { year, quarter, vendorId: item.vendorId } },
-        create: { year, quarter, vendorId: item.vendorId, ...data },
-        update: data,
-      });
-    }),
-  );
+  await prisma.$executeRaw`
+    INSERT INTO va_SQMVQMMonthlyReport
+      (year, quarter, vendorId, receivedQuantity, returnedQuantity, receivedBatches, returnedBatches, arr, lrr, externalCAR, untimelyResponseCCR, others, serviceQuality, lateDelivery, deliveryRate, specialApproval, productionLineStop, excessFreight, servicePurchase, remarks, totalBaseScoreB, qualityAssessmentScoreC1, totalPurchaseAssessmentScoreA, assessmentScore, createdAt, updatedAt)
+    VALUES ${Prisma.join(rows)}
+    ON DUPLICATE KEY UPDATE
+      receivedQuantity = VALUES(receivedQuantity), returnedQuantity = VALUES(returnedQuantity),
+      receivedBatches = VALUES(receivedBatches), returnedBatches = VALUES(returnedBatches),
+      arr = VALUES(arr), lrr = VALUES(lrr), externalCAR = VALUES(externalCAR),
+      untimelyResponseCCR = VALUES(untimelyResponseCCR), others = VALUES(others),
+      serviceQuality = VALUES(serviceQuality), lateDelivery = VALUES(lateDelivery),
+      deliveryRate = VALUES(deliveryRate), specialApproval = VALUES(specialApproval),
+      productionLineStop = VALUES(productionLineStop), excessFreight = VALUES(excessFreight),
+      servicePurchase = VALUES(servicePurchase), remarks = VALUES(remarks),
+      totalBaseScoreB = VALUES(totalBaseScoreB), qualityAssessmentScoreC1 = VALUES(qualityAssessmentScoreC1),
+      totalPurchaseAssessmentScoreA = VALUES(totalPurchaseAssessmentScoreA), assessmentScore = VALUES(assessmentScore),
+      updatedAt = NOW(3)
+  `;
+  return { count: items.length };
 };
