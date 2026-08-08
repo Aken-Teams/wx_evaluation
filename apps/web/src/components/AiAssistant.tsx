@@ -82,7 +82,7 @@ export function AiAssistant() {
         title={
           <Space>
             <Bot size={18} color="#2563eb" style={{ verticalAlign: '-3px' }} /> AI 助手
-            {statusQuery.data && <Tag color={statusQuery.data.configured ? 'success' : 'default'}>{statusQuery.data.configured ? '已连接' : '未配置'}</Tag>}
+            {statusQuery.data && <Tag color={statusQuery.data.configured ? 'processing' : 'default'}>{statusQuery.data.configured ? '已连接' : '未配置'}</Tag>}
           </Space>
         }
         open={open}

@@ -11,7 +11,6 @@ import {
   PanelLeftOpen,
   Scale,
   Settings,
-  ShieldCheck,
   SlidersHorizontal,
   SquarePen,
   Users,
@@ -25,7 +24,7 @@ import { AiAssistant } from './AiAssistant';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { ErrorBoundary } from './ErrorBoundary';
 
-const { Sider, Header, Content } = Layout;
+const { Sider, Header, Content, Footer } = Layout;
 
 const roleLabel: Record<string, string> = {
   admin: '系统管理员',
@@ -131,21 +130,11 @@ export function AppLayout() {
         >
           {!collapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(37,99,235,0.4)',
-                  flexShrink: 0,
-                }}
-              >
-                <ShieldCheck size={19} color="#fff" strokeWidth={2} />
-              </div>
+              <img
+                src="/logo.png"
+                alt="logo"
+                style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }}
+              />
               <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.5 }}>供应商评比</span>
             </div>
           )}
@@ -226,6 +215,12 @@ export function AppLayout() {
             <Outlet />
           </ErrorBoundary>
         </Content>
+        <Footer style={{ textAlign: 'center', color: '#8a94a6', fontSize: 12, padding: '16px 24px' }}>
+          Powered by 2026 @{' '}
+          <a href="https://www.zh-aoi.com/" target="_blank" rel="noreferrer" style={{ color: '#1a56db' }}>
+            智合科技
+          </a>
+        </Footer>
       </Layout>
       <AiAssistant />
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />

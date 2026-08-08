@@ -1,5 +1,4 @@
 import { CrownOutlined, EditOutlined, EyeOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
-import { ShieldCheck } from 'lucide-react';
 import { Button, Card, Divider, Form, Input, Space, Typography, message } from 'antd';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -36,14 +35,16 @@ export function LoginPage() {
       style={{
         minHeight: '100vh',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 20,
         background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
       }}
     >
       <Card style={{ width: 380, boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }} variant="borderless">
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <ShieldCheck size={40} color="#2563eb" />
+          <img src="/logo.png" alt="logo" style={{ width: 56, height: 56, objectFit: 'contain' }} />
           <Typography.Title level={4} style={{ marginTop: 12, marginBottom: 0 }}>
             供应商评比系统
           </Typography.Title>
@@ -78,6 +79,17 @@ export function LoginPage() {
           ))}
         </Space>
       </Card>
+      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
+        Powered by 2026 @{' '}
+        <a
+          href="https://www.zh-aoi.com/"
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: 'rgba(255,255,255,0.8)' }}
+        >
+          智合科技
+        </a>
+      </div>
     </div>
   );
 }
