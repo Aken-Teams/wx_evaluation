@@ -1,5 +1,12 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+
+// 统一环境变量：优先读「仓库根目录 .env」；apps/api/.env 作为迁移期后备（dotenv 不覆盖已存在的值）
+const here = dirname(fileURLToPath(import.meta.url)); // apps/api/src/config
+loadEnv({ path: resolve(here, '../../../../.env') }); // 仓库根 .env（部署时只维护这一个）
+loadEnv(); // 后备：cwd 下的 apps/api/.env
 
 /**
  * 環境變數集中驗證 — 缺關鍵值即 fail-fast（取代舊系統 JWT_SECRET 預設 'dev-secret' 的隱患）。
