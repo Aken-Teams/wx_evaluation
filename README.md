@@ -1,37 +1,68 @@
-# 供應商評核系統 (Vendor Assessment System)
+# 供應商評核系統
 
-用於管理供應商評核數據的全端系統，支援 SQM/VQM 與 OSAT 月／年度評核。
+> 讓供應商管理從「翻 Excel、對報表」變成一件輕鬆的事。
 
-## 快速開始
+這是一套幫助品質、採購與工程團隊管理供應商的系統。過去分散在各種試算表裡的評核分數、背景調查、比價資料，現在都集中在同一個地方，隨時可以查、可以比、可以看趨勢，還有 AI 幫你快速歸納重點。
+
+## 它能幫你做什麼
+
+- **📊 供應商情報** — 每家供應商的評核、背調、交易紀錄一頁看完
+- **📝 季度與年度評比** — 依 SQM/VQM 規則自動計算分數與等級，不必手動對表
+- **🎯 OSAT 評比** — 專屬的封測廠評核流程
+- **⚖️ 比價尋源** — 自動帶入供應商的評級與背調，報價一目了然
+- **🤖 AI 輔助** — 用問的就能分析資料、歸納結論、深入追問
+- **👥 分角色權限** — 管理者、評分者、檢視者各看各的，權責清楚
+
+## 開始使用
+
+第一次使用，先安裝相依套件：
 
 ```bash
-# 安裝依賴
 npm install
-cd server && npm install
+npm --prefix apps/api install
+npm --prefix apps/web install
+```
 
-# 後端（終端 1）
-cd server && npm run dev
+接著依你的情境選一種方式啟動——**要連哪個資料庫，由指令決定，不用改設定檔**。
 
-# 前端（終端 2）
+**日常開發／測試**（連台灣測試庫，開箱即用）
+
+```bash
 npm run dev
 ```
 
-訪問：http://localhost:5176（或依 VITE_PORT 設定）
+**正式使用**（連無錫正式庫，會自動建立安全連線通道）
 
-## 文檔
+```bash
+npm start
+```
 
-完整說明與部署指南請見 **`docs/`** 目錄：
+啟動後打開瀏覽器：**http://localhost:12073** 就能登入使用。
+（登入頁附有示範帳號，點一下就能體驗管理者／評分者／檢視者三種角色。）
 
-| 文件 | 說明 |
-|------|------|
-| [docs/README.md](docs/README.md) | 專案說明、技術棧、API、故障排除 |
-| [docs/DEPLOY.md](docs/DEPLOY.md) | 部署步驟與環境變數 |
-| [docs/1PanelCheck.md](docs/1PanelCheck.md) | 1Panel 部署完整指南 |
-| [docs/系統操作說明.md](docs/系統操作說明.md) | 啟動／關閉／常見問題 |
-| [docs/計算規則與判定邏輯說明.md](docs/計算規則與判定邏輯說明.md) | SQM/OSAT 計算與判定邏輯 |
-| [docs/GIT_READY_CHECKLIST.md](docs/GIT_READY_CHECKLIST.md) | 上傳 Gitea 前檢查清單 |
-| [docs/VA_PREFIX_README.md](docs/VA_PREFIX_README.md) | 資料庫表名 va_ 前綴說明 |
+> 💡 正式區第一次使用前，需要把 `.env.tunnel.example` 複製成 `.env.tunnel` 並填入跳板機資訊。
+> 通道也可以單獨操作：`npm run tunnel`（開）、`npm run tunnel:status`（查）、`npm run tunnel:stop`（關）。
+
+## 系統長怎樣
+
+專案分成三塊，各司其職：
+
+- **前端** `apps/web` — 使用者實際操作的畫面（React + Ant Design）
+- **後端** `apps/api` — 資料存取與商業邏輯（Express + Prisma）
+- **評分引擎** `packages/scoring` — 所有分數的唯一計算來源，前後端共用，確保算出來的結果永遠一致
+
+所有設定都集中在根目錄的 `.env` 一個檔案，部署時只要維護這一份。資料庫密碼、金鑰等敏感資訊只有後端看得到，不會外洩到瀏覽器。
+
+## 想更深入
+
+更完整的說明與部署指南都在 [`docs/`](docs/) 資料夾：
+
+- [專案說明與技術細節](docs/README.md)
+- [部署步驟](docs/DEPLOY.md) ｜ [1Panel 部署指南](docs/1PanelCheck.md)
+- [系統操作說明](docs/系統操作說明.md)（啟動、關閉、常見問題）
+- [計算規則與判定邏輯](docs/計算規則與判定邏輯說明.md)
+- [重構計畫書](docs/重構計畫書.md)
 
 ---
 
-**最後更新**: 2025-10-31
+Powered by 2026 @ [智合科技](https://www.zh-aoi.com/)
