@@ -109,8 +109,8 @@ jspm_packages/
 # Nuxt.js
 .nuxt
 
-# Gatsby
-public
+# Gatsby（僅忽略根目錄的 Gatsby build 輸出，避免誤傷 apps/web/public 等靜態資源夾）
+/public
 
 # Storybook
 .out
