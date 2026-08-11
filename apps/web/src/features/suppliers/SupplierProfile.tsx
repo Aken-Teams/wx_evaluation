@@ -265,7 +265,7 @@ export function SupplierProfile() {
                 </Col>
                 <Col xs={24} lg={12}>
                   <Card
-                    title={`参与的比价案件${sourcingParticipation.length ? `（${sourcingParticipation.length}）` : ''}`}
+                    title={`参与的比价案件${sourcingParticipation.length ? `（${new Set(sourcingParticipation.map((s) => s.eventId)).size}）` : ''}`}
                     variant="borderless"
                     extra={
                       sourcingParticipation.length ? (
@@ -293,30 +293,45 @@ export function SupplierProfile() {
                     {sourcingParticipation.length ? (
                       (() => {
                         const q = sourcingQuery.trim().toLowerCase();
-                        const rows = sourcingParticipation.filter(
-                          (s) => (sourcingBest === 'all' || s.isBest) && (!q || s.eventTitle.toLowerCase().includes(q)),
+                        // 依案件彙整：同一案件的「议价前 / 议价后」合併為一列
+                        const byEvent = new Map<
+                          number,
+                          { eventId: number; eventTitle: string; stages: string[]; isBest: boolean }
+                        >();
+                        for (const s of sourcingParticipation) {
+                          const e =
+                            byEvent.get(s.eventId) ?? { eventId: s.eventId, eventTitle: s.eventTitle, stages: [], isBest: false };
+                          if (!e.stages.includes(s.stage)) e.stages.push(s.stage);
+                          if (s.isBest) e.isBest = true;
+                          byEvent.set(s.eventId, e);
+                        }
+                        const rows = [...byEvent.values()].filter(
+                          (r) => (sourcingBest === 'all' || r.isBest) && (!q || r.eventTitle.toLowerCase().includes(q)),
                         );
+                        const stageRank = (st: string) => (st === 'before' ? 0 : 1);
                         return (
                           <Table
-                            rowKey={(r) => `${r.eventId}-${r.stage}`}
+                            rowKey={(r) => r.eventId}
                             size="small"
                             dataSource={rows}
                             pagination={rows.length > 6 ? { pageSize: 6, size: 'small' } : false}
                             locale={{ emptyText: '无符合条件的案件' }}
-                            onRow={() => ({ onClick: () => nav('/sourcing'), style: { cursor: 'pointer' } })}
+                            onRow={(r) => ({ onClick: () => nav(`/sourcing?event=${r.eventId}`), style: { cursor: 'pointer' } })}
                             columns={[
                               { title: '案件名称', dataIndex: 'eventTitle', ellipsis: true },
                               {
                                 title: '阶段',
-                                dataIndex: 'stage',
-                                width: 84,
+                                width: 128,
                                 align: 'center',
-                                filters: [
-                                  { text: '议价前', value: 'before' },
-                                  { text: '议价后', value: 'after' },
-                                ],
-                                onFilter: (val, r) => r.stage === val,
-                                render: (v: string) => <Tag>{v === 'before' ? '议价前' : '议价后'}</Tag>,
+                                render: (_: unknown, r) => (
+                                  <Space size={4}>
+                                    {[...r.stages]
+                                      .sort((a, b) => stageRank(a) - stageRank(b))
+                                      .map((st) => (
+                                        <Tag key={st}>{st === 'before' ? '议价前' : '议价后'}</Tag>
+                                      ))}
+                                  </Space>
+                                ),
                               },
                               {
                                 title: '最优',

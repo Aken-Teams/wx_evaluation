@@ -29,6 +29,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { analyticsApi, backgroundApi, sourcingApi, suppliersApi, type QuoteInput } from '../../api';
 import { GradeTag } from '../../components/GradeTag';
 import { MarkdownLite } from '../../components/MarkdownLite';
@@ -102,7 +103,12 @@ const TEMPLATE_KEYS: TemplateKey[] = ['blank', 'same', 'multiMold', 'multiProduc
 export function SourcingPage() {
   const { message } = AntApp.useApp();
   const qc = useQueryClient();
-  const [selected, setSelected] = useState<number | null>(null);
+  // 支援由外部（如供應商檔案）以 ?event=<id> 直接開啟該案件詳情
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selected, setSelected] = useState<number | null>(() => {
+    const e = searchParams.get('event');
+    return e ? Number(e) : null;
+  });
   const [eventForm] = Form.useForm();
   const [quoteForm] = Form.useForm();
   const [eventModal, setEventModal] = useState(false);
@@ -679,7 +685,7 @@ export function SourcingPage() {
           styles={{ body: { padding: detail ? 0 : 24 } }}
           title={
             <Space>
-              <Button type="text" icon={<ArrowLeft size={16} />} onClick={() => { setSelected(null); setRec(null); }}>
+              <Button type="text" icon={<ArrowLeft size={16} />} onClick={() => { setSelected(null); setRec(null); if (searchParams.get('event')) setSearchParams({}); }}>
                 返回列表
               </Button>
               <span>{detail ? `${detail.title} · 报价比较` : '案件详情'}</span>
