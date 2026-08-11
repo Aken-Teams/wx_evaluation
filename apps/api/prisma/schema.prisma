@@ -94,9 +94,25 @@ model SourcingQuote {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   event            SourcingEvent @relation(fields: [eventId], references: [id])
+  attachments      SourcingAttachment[]
 
   @@index([eventId])
   @@map("va_SourcingQuote")
+}
+
+/// 比價報價的附件（報價單等）：檔案存於伺服器，DB 僅存中繼資料。
+model SourcingAttachment {
+  id         Int           @id @default(autoincrement())
+  quoteId    Int
+  fileName   String // 原始檔名（顯示用）
+  storedName String // 伺服器實際儲存檔名（唯一）
+  mime       String // MIME 類型
+  size       Int // 位元組
+  createdAt  DateTime      @default(now())
+  quote      SourcingQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@map("va_SourcingAttachment")
 }
 
 model SQMVQMAnnualInput {

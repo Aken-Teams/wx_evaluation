@@ -158,3 +158,6 @@ server/scripts/
 # Configuration files that might contain sensitive data
 config/database.js
 config/secrets.js
+
+# 上傳的附件（報價單等）— 不進版控
+apps/api/uploads/

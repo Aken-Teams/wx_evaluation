@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/multer": "^2.2.0",
     "@wx/scoring": "file:../../packages/scoring",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -21,6 +22,7 @@
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.2.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

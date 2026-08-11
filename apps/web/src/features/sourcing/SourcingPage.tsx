@@ -1,10 +1,11 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, EyeOutlined, PaperClipOutlined, PlusOutlined, StarFilled, StarOutlined, ThunderboltOutlined, TrophyOutlined, UploadOutlined } from '@ant-design/icons';
 import { ArrowLeft, Download, Scale, Sparkles, Trophy } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   App as AntApp,
   AutoComplete,
+  Badge,
   Button,
   Card,
   Empty,
@@ -13,6 +14,7 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Popover,
   Progress,
   Radio,
   Segmented,
@@ -21,7 +23,9 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
+  Upload,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
@@ -30,7 +34,7 @@ import { GradeTag } from '../../components/GradeTag';
 import { MarkdownLite } from '../../components/MarkdownLite';
 import { PageHeader } from '../../components/PageHeader';
 import { apiErrorMessage } from '../../lib/api';
-import type { BackgroundRow, Grade, SourcingQuote, SourcingRecommendation } from '../../types';
+import type { BackgroundRow, Grade, SourcingAttachment, SourcingQuote, SourcingRecommendation } from '../../types';
 
 const CUR_YEAR = 2026;
 const bgRiskLevel = (b: BackgroundRow | undefined) => {
@@ -237,6 +241,45 @@ export function SourcingPage() {
     onError: (e) => message.error(apiErrorMessage(e)),
   });
 
+  // ── 報價單附件：上傳 / 預覽 / 下載 / 刪除 ──
+  const isPreviewable = (mime: string) => mime === 'application/pdf' || mime.startsWith('image/');
+  const openAttachment = async (a: SourcingAttachment, mode: 'preview' | 'download') => {
+    try {
+      const blob = await sourcingApi.fetchAttachmentBlob(a.id);
+      const url = URL.createObjectURL(blob);
+      if (mode === 'preview') {
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = a.fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      }
+    } catch (e) {
+      message.error(apiErrorMessage(e, mode === 'preview' ? '预览失败' : '下载失败'));
+    }
+  };
+  const uploadAttachments = useMutation({
+    mutationFn: ({ quoteId, files }: { quoteId: number; files: File[] }) => sourcingApi.uploadAttachments(quoteId, files),
+    onSuccess: () => {
+      message.success('已上传报价单');
+      refetchAll();
+    },
+    onError: (e) => message.error(apiErrorMessage(e, '上传失败')),
+  });
+  const deleteAttachment = useMutation({
+    mutationFn: (id: number) => sourcingApi.deleteAttachment(id),
+    onSuccess: () => {
+      message.success('已删除附件');
+      refetchAll();
+    },
+    onError: (e) => message.error(apiErrorMessage(e)),
+  });
+
   const [recOpen, setRecOpen] = useState(false);
   const [rec, setRec] = useState<SourcingRecommendation | null>(null);
   const recommend = useMutation({
@@ -394,6 +437,79 @@ export function SourcingPage() {
         { title: '本案备注', dataIndex: 'backgroundInfo', width: 220, render: preLine },
         { title: '综合评估', dataIndex: 'evaluation', width: 200, render: preLine },
       ],
+    },
+    {
+      title: '报价单',
+      fixed: 'right',
+      width: 96,
+      align: 'center',
+      render: (_, q) => {
+        const list = q.attachments ?? [];
+        const popContent = (
+          <div style={{ maxWidth: 300, minWidth: 180, maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
+            {list.length ? (
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                {list.map((a) => (
+                  <Space key={a.id} size={4} style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Typography.Text ellipsis={{ tooltip: a.fileName }} style={{ maxWidth: 168, fontSize: 13 }}>
+                      <PaperClipOutlined style={{ color: '#8a94a6', marginInlineEnd: 4 }} />
+                      {a.fileName}
+                    </Typography.Text>
+                    <Space size={0}>
+                      {isPreviewable(a.mime) && (
+                        <Tooltip title="预览">
+                          <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => openAttachment(a, 'preview')} />
+                        </Tooltip>
+                      )}
+                      <Tooltip title="下载">
+                        <Button size="small" type="text" icon={<DownloadOutlined />} onClick={() => openAttachment(a, 'download')} />
+                      </Tooltip>
+                      <Popconfirm title="删除此附件？" onConfirm={() => deleteAttachment.mutate(a.id)} okText="删除" cancelText="取消">
+                        <Tooltip title="删除">
+                          <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                        </Tooltip>
+                      </Popconfirm>
+                    </Space>
+                  </Space>
+                ))}
+              </Space>
+            ) : (
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                尚无附件，点右侧
+                <UploadOutlined style={{ margin: '0 2px' }} />
+                上传
+              </Typography.Text>
+            )}
+          </div>
+        );
+        return (
+          <Space size={2}>
+            <Popover trigger="hover" placement="left" title="报价单附件" content={popContent} mouseLeaveDelay={0.3}>
+              <Badge count={list.length} size="small" color="#1a56db">
+                <Button
+                  type="text"
+                  icon={<PaperClipOutlined style={{ fontSize: 16, color: list.length ? '#1a56db' : '#c0c4cc' }} />}
+                />
+              </Badge>
+            </Popover>
+            <Upload
+              multiple
+              showUploadList={false}
+              beforeUpload={(file, fileList) => {
+                // 一次選多檔時，僅在最後一個觸發，整批一起上傳
+                if (file === fileList[fileList.length - 1]) {
+                  uploadAttachments.mutate({ quoteId: q.id, files: fileList as unknown as File[] });
+                }
+                return false; // 阻止 antd 預設自動上傳
+              }}
+            >
+              <Tooltip title="上传报价单">
+                <Button size="small" type="text" icon={<UploadOutlined />} loading={uploadAttachments.isPending} />
+              </Tooltip>
+            </Upload>
+          </Space>
+        );
+      },
     },
     {
       title: '操作',

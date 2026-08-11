@@ -210,6 +210,16 @@ export interface QuoteProduct {
   unitPrice?: number | null;
 }
 
+export interface SourcingAttachment {
+  id: number;
+  quoteId: number;
+  fileName: string;
+  storedName: string;
+  mime: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface SourcingQuote {
   id: number;
   eventId: number;
@@ -229,6 +239,7 @@ export interface SourcingQuote {
   backgroundInfo: string | null;
   evaluation: string | null;
   isBest: boolean;
+  attachments?: SourcingAttachment[];
 }
 
 export interface SourcingEventDetail extends SourcingEvent {

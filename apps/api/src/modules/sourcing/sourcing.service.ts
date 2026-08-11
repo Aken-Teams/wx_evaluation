@@ -1,7 +1,19 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../db/prisma';
-import { notFound } from '../../lib/httpError';
+import { badRequest, notFound } from '../../lib/httpError';
 import * as ai from '../ai/ai.service';
+
+/** 附件實體儲存目錄（apps/api/uploads/sourcing）；相對本模組計算，與啟動 cwd 無關。 */
+export const uploadDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../uploads/sourcing');
+export const ensureUploadDir = () => {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  return uploadDir;
+};
+const unlinkQuiet = (storedName: string) =>
+  fs.promises.unlink(path.join(uploadDir, storedName)).catch(() => undefined);
 
 export const listEvents = () =>
   prisma.sourcingEvent.findMany({
@@ -15,7 +27,12 @@ export const createEvent = (data: { title: string; itemName?: string | null; des
 export const getEvent = async (id: number) => {
   const event = await prisma.sourcingEvent.findUnique({
     where: { id },
-    include: { quotes: { orderBy: [{ supplierName: 'asc' }, { stage: 'asc' }] } },
+    include: {
+      quotes: {
+        orderBy: [{ supplierName: 'asc' }, { stage: 'asc' }],
+        include: { attachments: { orderBy: { createdAt: 'asc' } } },
+      },
+    },
   });
   if (!event) throw notFound('找不到该比价案件');
   return event;
@@ -31,6 +48,9 @@ export const updateEvent = async (
 
 export const deleteEvent = async (id: number) => {
   await getEvent(id);
+  // 先清實體檔（DB 附件列由 FK ON DELETE CASCADE 隨報價移除）
+  const quotes = await prisma.sourcingQuote.findMany({ where: { eventId: id }, include: { attachments: true } });
+  await Promise.all(quotes.flatMap((q) => q.attachments.map((a) => unlinkQuiet(a.storedName))));
   await prisma.$transaction([
     prisma.sourcingQuote.deleteMany({ where: { eventId: id } }),
     prisma.sourcingEvent.delete({ where: { id } }),
@@ -85,9 +105,39 @@ export const updateQuote = async (id: number, data: Partial<QuoteInput>) => {
 };
 
 export const deleteQuote = async (id: number) => {
-  const q = await prisma.sourcingQuote.findUnique({ where: { id } });
+  const q = await prisma.sourcingQuote.findUnique({ where: { id }, include: { attachments: true } });
   if (!q) throw notFound('找不到该报价');
-  await prisma.sourcingQuote.delete({ where: { id } });
+  await Promise.all(q.attachments.map((a) => unlinkQuiet(a.storedName)));
+  await prisma.sourcingQuote.delete({ where: { id } }); // 附件列由 FK CASCADE 移除
+  return { ok: true };
+};
+
+// ── 報價單附件 ──
+export interface UploadedFileMeta {
+  fileName: string;
+  storedName: string;
+  mime: string;
+  size: number;
+}
+
+export const addAttachments = async (quoteId: number, files: UploadedFileMeta[]) => {
+  const q = await prisma.sourcingQuote.findUnique({ where: { id: quoteId } });
+  if (!q) throw notFound('找不到该报价');
+  if (!files.length) throw badRequest('未收到檔案');
+  await prisma.sourcingAttachment.createMany({ data: files.map((f) => ({ quoteId, ...f })) });
+  return prisma.sourcingAttachment.findMany({ where: { quoteId }, orderBy: { createdAt: 'asc' } });
+};
+
+export const getAttachment = async (id: number) => {
+  const a = await prisma.sourcingAttachment.findUnique({ where: { id } });
+  if (!a) throw notFound('找不到附件');
+  return a;
+};
+
+export const deleteAttachment = async (id: number) => {
+  const a = await getAttachment(id);
+  await prisma.sourcingAttachment.delete({ where: { id } });
+  await unlinkQuiet(a.storedName);
   return { ok: true };
 };
 

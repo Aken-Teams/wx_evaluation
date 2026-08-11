@@ -9,6 +9,7 @@ import type {
   OsatRow,
   Period,
   Quarter,
+  SourcingAttachment,
   SourcingEvent,
   SourcingEventDetail,
   SourcingQuote,
@@ -133,6 +134,17 @@ export const sourcingApi = {
   markBest: (id: number) => api.post(`/sourcing/quotes/${id}/best`).then((r) => r.data),
   recommend: (id: number) =>
     api.post<SourcingRecommendation>(`/sourcing/events/${id}/recommend`, undefined, { timeout: 120000 }).then((r) => r.data),
+  // 報價單附件
+  uploadAttachments: (quoteId: number, files: File[]) => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    return api
+      .post<SourcingAttachment[]>(`/sourcing/quotes/${quoteId}/attachments`, fd, { timeout: 120000 })
+      .then((r) => r.data);
+  },
+  deleteAttachment: (id: number) => api.delete(`/sourcing/attachments/${id}`).then((r) => r.data),
+  fetchAttachmentBlob: (id: number) =>
+    api.get(`/sourcing/attachments/${id}/file`, { responseType: 'blob' }).then((r) => r.data as Blob),
 };
 
 // ── Users ──
